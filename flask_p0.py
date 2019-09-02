@@ -20,50 +20,76 @@ import tempfile
 import base64
 import re
 import numpy as np
+from enum import Enum
 import os
 
-def handle_plot_widget(ppp):
-    s = None
-    htmlwidgets = importr('htmlwidgets')
+class PlotType(Enum):
+    PNG = 1
+    SVG = 2
+    PLOTLY = 3
 
-    with tempfile.NamedTemporaryFile() as t:
-            htmlwidgets.saveWidget(ppp, t.name, libdir='lib', selfcontained = False)
-            # start stupid fix to get all the recent libs written in the flask lib directory
-            htmlwidgets.saveWidget(ppp, 'bof', libdir='lib', selfcontained = False)
-            os.remove('bof')
-            # end stupid fix
-            with open(t.name, "r") as f:
-                s = f.read()
-    return s
+def handle_plot_format(pp, plot_type: PlotType):
+    if plot_type == PlotType.PLOTLY:
+        plotly = importr('plotly')
+        ppp = plotly.ggplotly(pp)
+        htmlwidgets = importr('htmlwidgets')
+        with tempfile.NamedTemporaryFile() as t:
+                htmlwidgets.saveWidget(ppp, t.name, libdir='lib', selfcontained = False)
+                # start stupid fix to get all the recent libs written in the flask lib directory
+                htmlwidgets.saveWidget(ppp, 'bof', libdir='lib', selfcontained = False)
+                os.remove('bof')
+                # end stupid fix
+                with open(t.name, "r") as f:
+                    s = f.read()
+        return s
+    else:
+        with tempfile.NamedTemporaryFile() as t:
+            if plot_type == PlotType.SVG:
+                grdevices = importr('grDevices')
+                grdevices.svg(file=t.name)
+                pp.plot()
+                grdevices.dev_off()
 
-def plot_TIC(tic_table):
-    d= {'RT': robjects.POSIXct((tuple([datetime.datetime.fromtimestamp(i) for i in tic_table.value['RT']]))),
+                with open(t.name, "r") as f:
+                    s = f.read()
+            else:
+                grdevices = importr('grDevices')
+                grdevices.png(file=t.name, width=512, height=512)
+                pp.plot()
+                grdevices.dev_off()
+
+                with open(t.name, "rb") as fb:
+                    s = base64.b64encode(fb.read()).decode()
+        return s
+
+def plot_TIC(tic_table, start_time, plot_type=PlotType.PNG):
+    d= {'RT': robjects.POSIXct((tuple([start_time + datetime.timedelta(seconds=i) for i in tic_table.value['RT']]))),
         'int': robjects.FloatVector(tuple(tic_table.value['int']))   }
     dataf = robjects.DataFrame(d)
     scales = importr('scales')
     c0 = robjects.r('c(0,0)')
 
-    b=robjects.POSIXct(tuple([datetime.datetime.fromtimestamp(60*10)]))
     lim_maj=int(max(tic_table.value['RT'])//(60*30))
     lim_min=int(max(tic_table.value['RT'])//(60*10))+1
-    b_maj=robjects.POSIXct(tuple([datetime.datetime.fromtimestamp(60*30* i) for i in range(0,lim_maj+1)]))
-    b_min=robjects.POSIXct(tuple([datetime.datetime.fromtimestamp(60*10* i) for i in range(0,lim_min+1)]))
+    b_maj=robjects.POSIXct(tuple([start_time + datetime.timedelta(seconds=60*30* i) for i in range(0,lim_maj+1)]))
+    b_min=robjects.POSIXct(tuple([start_time + datetime.timedelta(seconds=60*10* i) for i in range(0,lim_min+1)]))
+
+    axislabels = robjects.StrVector(tuple([(datetime.datetime.fromtimestamp(60*30* i)).strftime("%H:%M") for i in range(0,lim_maj+1)]))
 
     pp = ggplot2.ggplot(dataf) + \
         ggplot2.geom_line() + \
         ggplot2.aes_string(x='RT', y='int') + \
-        ggplot2.scale_x_datetime(breaks=b_maj, minor_breaks=b_min, labels = scales.date_format("%H:%M"), expand=c0) + \
+        ggplot2.scale_x_datetime(breaks=b_maj, minor_breaks=b_min, labels = axislabels, expand=c0) + \
         ggplot2.scale_y_continuous(expand=c0) + \
         ggplot2.labs(y="Intensity", x="Time") + \
         ggplot2.ggtitle("TIC")
     #does not work: date_minor_breaks=scales.date_breaks("5 minutes")
-    
+    # scales.date_format("%H:%M")
+
     # ltb = robjects.r('theme(plot.margin = unit(c(.1,1,.1,.1), "cm"))')
     # pp = pp + ltb
 
-    plotly = importr('plotly')
-    ppp = plotly.ggplotly(pp)
-    return handle_plot_widget(ppp)
+    return handle_plot_format(pp, plot_type)
 
 # https://stackoverflow.com/questions/20646822/how-to-serve-static-files-in-flask 
 app = Flask(__name__, template_folder='serving_static', static_url_path='/lib', static_folder='lib')
@@ -79,7 +105,9 @@ def hello():
         print("start")
         content = request.json
         m = mzqc.JsonSerialisable.FromJson(json.dumps(content))
-        pltly = plot_TIC(m)
+        cmpltn = datetime.datetime.strptime("2012-02-03 11:00:41", '%Y-%m-%d %H:%M:%S')
+        mxrt = datetime.timedelta(seconds=m.value['RT'][-1])
+        pltly = plot_TIC(m, cmpltn-mxrt , PlotType.PLOTLY)
         print("done")
     return jsonify(pltly)
 

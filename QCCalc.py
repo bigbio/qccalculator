@@ -357,54 +357,76 @@ import tempfile
 import base64
 import re
 import numpy as np
+from enum import Enum
+import os
 
-def handle_plot_format(pp, svg_plot):
-    s = None
-    with tempfile.NamedTemporaryFile() as t:
-        if not svg_plot:
-            grdevices = importr('grDevices')
-            grdevices.png(file=t.name, width=512, height=512)
-            pp.plot()
-            grdevices.dev_off()
+class PlotType(Enum):
+    PNG = 1
+    SVG = 2
+    PLOTLY = 3
 
-            with open(t.name, "rb") as f:
-                s = base64.b64encode(f.read()).decode()            
-        else:
-            grdevices = importr('grDevices')
-            grdevices.svg(file=t.name)
-            pp.plot()
-            grdevices.dev_off()
+def handle_plot_format(pp, plot_type: PlotType):
+    if plot_type == PlotType.PLOTLY:
+        plotly = importr('plotly')
+        ppp = plotly.ggplotly(pp)
+        htmlwidgets = importr('htmlwidgets')
+        with tempfile.NamedTemporaryFile() as t:
+                htmlwidgets.saveWidget(ppp, t.name, libdir='lib', selfcontained = False)
+                # start stupid fix to get all the recent libs written in the flask lib directory
+                htmlwidgets.saveWidget(ppp, 'bof', libdir='lib', selfcontained = False)
+                os.remove('bof')
+                # end stupid fix
+                with open(t.name, "r") as f:
+                    s = f.read()
+        return s
+    else:
+        with tempfile.NamedTemporaryFile() as t:
+            if plot_type == PlotType.SVG:
+                grdevices = importr('grDevices')
+                grdevices.svg(file=t.name)
+                pp.plot()
+                grdevices.dev_off()
 
-            with open(t.name, "r") as f:
-                s = f.read()
-    return s
+                with open(t.name, "r") as f:
+                    s = f.read()
+            else:
+                grdevices = importr('grDevices')
+                grdevices.png(file=t.name, width=512, height=512)
+                pp.plot()
+                grdevices.dev_off()
 
-def plot_TIC(tic_table, svg_plot=False):
-    d= {'RT': robjects.POSIXct((tuple([datetime.datetime.fromtimestamp(i) for i in tic_table.value['RT']]))),
+                with open(t.name, "rb") as fb:
+                    s = base64.b64encode(fb.read()).decode()
+        return s
+
+def plot_TIC(tic_table, start_time, plot_type=PlotType.PNG):
+    d= {'RT': robjects.POSIXct((tuple([start_time + datetime.timedelta(seconds=i) for i in tic_table.value['RT']]))),
         'int': robjects.FloatVector(tuple(tic_table.value['int']))   }
     dataf = robjects.DataFrame(d)
     scales = importr('scales')
     c0 = robjects.r('c(0,0)')
 
-    b=robjects.POSIXct(tuple([datetime.datetime.fromtimestamp(60*10)]))
     lim_maj=int(max(tic_table.value['RT'])//(60*30))
     lim_min=int(max(tic_table.value['RT'])//(60*10))+1
-    b_maj=robjects.POSIXct(tuple([datetime.datetime.fromtimestamp(60*30* i) for i in range(0,lim_maj+1)]))
-    b_min=robjects.POSIXct(tuple([datetime.datetime.fromtimestamp(60*10* i) for i in range(0,lim_min+1)]))
+    b_maj=robjects.POSIXct(tuple([start_time + datetime.timedelta(seconds=60*30* i) for i in range(0,lim_maj+1)]))
+    b_min=robjects.POSIXct(tuple([start_time + datetime.timedelta(seconds=60*10* i) for i in range(0,lim_min+1)]))
+
+    axislabels = robjects.StrVector(tuple([(datetime.datetime.fromtimestamp(60*30* i)).strftime("%H:%M") for i in range(0,lim_maj+1)]))
 
     pp = ggplot2.ggplot(dataf) + \
         ggplot2.geom_line() + \
         ggplot2.aes_string(x='RT', y='int') + \
-        ggplot2.scale_x_datetime(breaks=b_maj, minor_breaks=b_min, labels = scales.date_format("%H:%M"), expand=c0) + \
+        ggplot2.scale_x_datetime(breaks=b_maj, minor_breaks=b_min, labels = axislabels, expand=c0) + \
         ggplot2.scale_y_continuous(expand=c0) + \
         ggplot2.labs(y="Intensity", x="Time") + \
         ggplot2.ggtitle("TIC")
     #does not work: date_minor_breaks=scales.date_breaks("5 minutes")
-    
+    # scales.date_format("%H:%M")
+
     # ltb = robjects.r('theme(plot.margin = unit(c(.1,1,.1,.1), "cm"))')
     # pp = pp + ltb
 
-    return handle_plot_format(pp, svg_plot)
+    return handle_plot_format(pp, plot_type)
 
 def plot_SN(table, mslevel=2, svg_plot=False):
     d= {'SN': robjects.FloatVector(tuple(table.value['SN'])) }
@@ -739,8 +761,12 @@ def plot_events(tic_table, surv_table, prec_table, psm_table=None, svg_plot=Fals
 
 ##### test code
 exp = oms.MSExperiment()
-oms.MzMLFile().load("tests/cptac_itraq_example.mzML", exp)
+oms.MzMLFile().load("tests/CPTAC_CompRef_00_iTRAQ_01_2Feb12_Cougar_11-10-09.trfr.mzML", exp)
 rq = getBasicQuality(exp)
+
+cmpltn: str = exp.getDateTime().get().decode()
+strt:datetime.datetime = datetime.datetime.strptime(cmpltn, '%Y-%m-%d %H:%M:%S') - datetime.timedelta(seconds=exp.getChromatograms()[0][exp.getChromatograms()[0].size()-1].getRT()*60)
+
 srq_d = mzqc.JsonSerialisable().ToJson(rq)
 srq_m = mzqc.JsonSerialisable().ToJson(rq, readability=1)
 with open("tests/basicrq_mzenc.json", "w") as f:
@@ -767,11 +793,11 @@ with open("tests/mzenc.json", "w") as f:
     f.write("{ \"mzQC\": " + mzq_m + " }")
 
 
-svg = plot_TIC(rq.qualityMetrics[6],True)
+svg = plot_TIC(rq.qualityMetrics[6],strt,PlotType.SVG)
 with open("tests/tic_svg_func.svg","w") as f:
     f.write(svg)
 
-tic = plot_TIC(rq.qualityMetrics[6])
+tic = plot_TIC(rq.qualityMetrics[6],strt)
 with open("tests/tic_png_func.png","wb") as fb:
     fb.write(base64.decodebytes(tic.encode()))
 
