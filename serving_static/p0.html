@@ -3,13 +3,22 @@
 <head>
   <meta http-equiv="content-type" content="text/html; charset=UTF-8">
   <title>big whop</title>
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+  <!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script> -->
+  <script src="{{ url_for('static', filename='jquery-1.11.3/jquery.min.js') }}"></script>
+  <!-- <script src="{{ url_for('static', filename='jquery-1.11.3/jquery.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='htmlwidgets-1.3/htmlwidgets.js') }}"></script>
+  <script src="{{ url_for('static', filename='plotly-binding-4.8.0/plotly.js') }}"></script>
+  <script src="{{ url_for('static', filename='typedarray-0.1/typedarray.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='crosstalk-1.0.0/js/crosstalk.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='plotly-main-1.39.2/plotly-latest.min.js') }}"></script>
+  <link href="{{ url_for('static', filename='crosstalk-1.0.0/css/crosstalk.css') }}" rel="stylesheet" />
+  <link href="{{ url_for('static', filename='plotly-htmlwidgets-css-1.39.2/plotly-htmlwidgets.css') }}" rel="stylesheet" /> -->
 </head>
 
 <body>
 <h1>{{message}}</h1>
 
-<h1>json upload</h1>
+<h1>mzQC upload</h1>
 <script>
 $(document).on('change', '.file-upload-button', function(event) {
   var reader = new FileReader();
@@ -20,10 +29,29 @@ $(document).on('change', '.file-upload-button', function(event) {
     $.ajax({
 	  type: "POST",
 	  url: "echo",
-	  data: JSON.stringify(jsonObj),
-	  success: function(){
-		    alert(jsonObj.mzQC.version);
+	  data: JSON.stringify(jsonObj.mzQC.runQualities[0].qualityMetrics[6]),
+	  success: function(resp){
+		    // alert(resp); // works
+        var respObj = resp;
+        $('<iframe/>', {
+            name: 'myiframe',
+            id: 'myiframe',
+            src: 'data:text/html;charset=utf-8,' + encodeURI(resp),
+            width: '600px',
+            height: '400px',
+            frameborder: "0",
+            load: function() {
+                alert("loaded")
+            }
+        }).appendTo('body');
+        var iframeDocument = document.getElementById('myiframe').contentDocument;
+        iframeDocument.open();
+        iframeDocument.write(resp);
+        iframeDocument.close();
 	  },
+    error: function(resp){
+      alert(jsonObj.mzQC.version);
+    },
 	  dataType: "json",
 	  contentType : "application/json"
 	});
@@ -35,6 +63,7 @@ $(document).on('change', '.file-upload-button', function(event) {
 </script> 
 
 <input class='file-upload-button' type="file" />
+
 
 </body>
 </html> 

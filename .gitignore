@@ -6,3 +6,5 @@
 \.pytest_cache/
 
 src/pip-delete-this-directory\.txt
+
+src/
