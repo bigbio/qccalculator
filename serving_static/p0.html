@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <title>big whop</title>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+</head>
+
+<body>
+<h1>{{message}}</h1>
+
+<h1>json upload</h1>
+<script>
+$(document).on('change', '.file-upload-button', function(event) {
+  var reader = new FileReader();
+
+  reader.onload = function(event) {
+    var jsonObj = JSON.parse(event.target.result);
+    alert(jsonObj.mzQC.creationDate);
+    $.ajax({
+	  type: "POST",
+	  url: "echo",
+	  data: JSON.stringify(jsonObj),
+	  success: function(){
+		    alert(jsonObj.mzQC.version);
+	  },
+	  dataType: "json",
+	  contentType : "application/json"
+	});
+
+  }
+
+  reader.readAsText(event.target.files[0]);
+});
+</script> 
+
+<input class='file-upload-button' type="file" />
+
+</body>
+</html> 
+
+
+
