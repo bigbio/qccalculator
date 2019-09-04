@@ -49,11 +49,11 @@
 
     <script>
     function loadPlot(event) { 
-      var runi = event.target.getAttribute("runi");
-      var i = event.target.getAttribute("i");
-      var ifrid = "ifr_" + runi + "_" + i;
+      runi = event.target.getAttribute("runi");
+      i = event.target.getAttribute("i");
+      ifrid = "ifr_" + runi + "_" + i;
       alert("beep" + ifrid);
-      var el = document.getElementById(ifrid);
+      el = document.getElementById(ifrid);
       alert(el.getAttribute("is_plot"));
       if (true){
       // if (el.hasAttribute("is_plot") && !el.getAttribute("is_plot")){
@@ -64,19 +64,8 @@
           data: JSON.stringify(jsonObj.mzQC.runQualities[runi].qualityMetrics[i]),
           success: function(resp){
               alert("mommy!");
-              var respObj = resp;
-              // var ifr = $('<iframe/>', {
-              //     name: ifrid,
-              //     id: ifrid,
-              //     src: 'data:text/html;charset=utf-8,' + encodeURI(resp),
-              //     width: '600px',
-              //     height: '400px',
-              //     frameborder: "0",
-              //     load: function() {
-              //         alert("loaded")
-              //     }
-              // });
-              var ifr = document.createElement('iframe');
+              respObj = resp;
+              ifr = document.createElement('iframe');
               ifr.name = ifrid; 
               ifr.id = ifrid; 
               ifr.src = 'data:text/html;charset=utf-8,' + encodeURI(resp);
@@ -104,19 +93,18 @@
         jsonObj = JSON.parse(event.target.result);
         alert(jsonObj.mzQC.creationDate);
         
-        var runi;
         for (runi = 0; runi < jsonObj.mzQC.runQualities.length; runi++) { 
           var i;
           for (i = 0; i < jsonObj.mzQC.runQualities[runi].qualityMetrics.length; ++i) {
-              var qmn = jsonObj.mzQC.runQualities[runi].qualityMetrics[i].name;
+              qmn = jsonObj.mzQC.runQualities[runi].qualityMetrics[i].name;
  
-              var discol = document.createElement('div');
+              discol = document.createElement('div');
               discol.setAttribute('class','col s12 m6 l6 card large');
               discol.id="colcard_" + runi + "_" + i; 
               
-              var discardico = document.createElement('div');
+              discardico = document.createElement('div');
               discardico.setAttribute('class','card-image waves-effect waves-block waves-light');
-              var inner1 = document.createElement('i');
+              inner1 = document.createElement('i');
               inner1.setAttribute('class','activator large material-icons');
               inner1.textContent="insert_chart"; 
               inner1.setAttribute('runi', runi);
@@ -125,36 +113,36 @@
 
               discardico.appendChild(inner1);
 
-              var discardface = document.createElement('div');
+              discardface = document.createElement('div');
               discardface.setAttribute('class','card-content');
-              var spanel1 = document.createElement('span');
+              spanel1 = document.createElement('span');
               spanel1.setAttribute('class','card-title activator grey-text text-darken-4');
               spanel1.setAttribute('runi', runi);
               spanel1.setAttribute('i',i);
               spanel1.addEventListener("click", loadPlot);
               spanel1.textContent = qmn; 
-              var inner2 = document.createElement('i');
+              inner2 = document.createElement('i');
               inner2.setAttribute('class','material-icons right');
               inner2.textContent="more_vert";  
-              var par = document.createElement('p');
+              par = document.createElement('p');
               par.textContent="Some more description if you fancy"; 
               spanel1.appendChild(inner2);
               discardface.appendChild(spanel1);
               discardface.appendChild(par);
 
-              var discardcont = document.createElement('div');
+              discardcont = document.createElement('div');
               discardcont.setAttribute('class','card-reveal');
-              var spanel2 = document.createElement('span');
+              spanel2 = document.createElement('span');
               spanel2.setAttribute('class','card-title grey-text text-darken-4');
-              var ifr = document.createElement('iframe');
+              ifr = document.createElement('iframe');
               ifr.name = "ifr_" + runi + "_" + i; 
               ifr.id = "ifr_" + runi + "_" + i; 
-              var limg = "<center><img src='http://localhost:5000/lib/hamster.gif' height='130' width='180' align='middle'></center>";
+              limg = "<center><img src='http://localhost:5000/lib/hamster.gif' height='130' width='180' align='middle'></center>";
               ifr.src = 'data:text/html;charset=utf-8,' + encodeURI(limg);
               ifr.setAttribute('frameborder', "0");
               ifr.setAttribute("is_plot", false);
               spanel2.appendChild(ifr);
-              var inner3 = document.createElement('i');
+              inner3 = document.createElement('i');
               inner3.setAttribute('class','material-icons right');
               inner3.textContent="close";  
               spanel2.appendChild(inner3);

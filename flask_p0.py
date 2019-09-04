@@ -23,25 +23,30 @@ import numpy as np
 from enum import Enum
 import os
 
+PORT = 5000
+
 class PlotType(Enum):
     PNG = 1
     SVG = 2
     PLOTLY = 3
 
-def handle_plot_format(pp, plot_type: PlotType):
+def handle_plot_format(pp, plot_type: PlotType, hosturl="http://localhost", port=PORT):
     if plot_type == PlotType.PLOTLY:
         plotly = importr('plotly')
         ppp = plotly.ggplotly(pp)
         htmlwidgets = importr('htmlwidgets')
+        serverstructure_library_destination = "lib"
         with tempfile.NamedTemporaryFile() as t:
                 htmlwidgets.saveWidget(ppp, t.name, libdir="replaceme", selfcontained = False)
                 # start stupid fix to get all the recent libs written in the flask lib directory
-                htmlwidgets.saveWidget(ppp, 'bof', libdir='lib', selfcontained = False)
+                htmlwidgets.saveWidget(ppp, 'bof', libdir=serverstructure_library_destination, selfcontained = False)
                 os.remove('bof')
                 # end stupid fix
                 with open(t.name, "r") as f:
                     s = f.read()
-                    s = s.replace("replaceme", "http://localhost:5000/lib")
+                    s = s.replace("replaceme", "{h}{p}/{l}".format(h=hosturl, 
+                                                l=serverstructure_library_destination, 
+                                                p="" if port is None else ":"+str(port)))
         return s
     else:
         with tempfile.NamedTemporaryFile() as t:
@@ -63,7 +68,7 @@ def handle_plot_format(pp, plot_type: PlotType):
                     s = base64.b64encode(fb.read()).decode()
         return s
 
-def plot_TIC(tic_table, start_time, plot_type=PlotType.PNG):
+def plot_TIC(tic_table, start_time, plot_type=PlotType.PNG, hosturl="http://localhost", port=PORT):
     d= {'RT': robjects.POSIXct((tuple([start_time + datetime.timedelta(seconds=i) for i in tic_table.value['RT']]))),
         'int': robjects.FloatVector(tuple(tic_table.value['int']))   }
     dataf = robjects.DataFrame(d)
@@ -90,10 +95,11 @@ def plot_TIC(tic_table, start_time, plot_type=PlotType.PNG):
     # ltb = robjects.r('theme(plot.margin = unit(c(.1,1,.1,.1), "cm"))')
     # pp = pp + ltb
 
-    return handle_plot_format(pp, plot_type)
+    return handle_plot_format(pp, plot_type, hosturl, port)
 
 # https://stackoverflow.com/questions/20646822/how-to-serve-static-files-in-flask 
 app = Flask(__name__, template_folder='serving_static', static_url_path='/lib', static_folder='lib')
+#TODO this needs parameterisation in-line with handle_plot_format
 
 @app.route('/')
 def root():
@@ -106,13 +112,15 @@ def hello():
         print("start")
         content = request.json
         m = mzqc.JsonSerialisable.FromJson(json.dumps(content))
+        #TODO this needs parameterisation
         cmpltn = datetime.datetime.strptime("2012-02-03 11:00:41", '%Y-%m-%d %H:%M:%S')
         mxrt = datetime.timedelta(seconds=m.value['RT'][-1])
+        print(request.host_url)  # this is complete with port, request.remote_addr should be w/o 
         pltly = plot_TIC(m, cmpltn-mxrt , PlotType.PLOTLY)
         print("done")
     return jsonify(pltly)
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, port=PORT)
 
 #~ python flask_p0.py
