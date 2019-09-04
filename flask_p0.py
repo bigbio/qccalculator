@@ -34,13 +34,14 @@ def handle_plot_format(pp, plot_type: PlotType):
         ppp = plotly.ggplotly(pp)
         htmlwidgets = importr('htmlwidgets')
         with tempfile.NamedTemporaryFile() as t:
-                htmlwidgets.saveWidget(ppp, t.name, libdir='lib', selfcontained = False)
+                htmlwidgets.saveWidget(ppp, t.name, libdir="replaceme", selfcontained = False)
                 # start stupid fix to get all the recent libs written in the flask lib directory
                 htmlwidgets.saveWidget(ppp, 'bof', libdir='lib', selfcontained = False)
                 os.remove('bof')
                 # end stupid fix
                 with open(t.name, "r") as f:
                     s = f.read()
+                    s = s.replace("replaceme", "http://localhost:5000/lib")
         return s
     else:
         with tempfile.NamedTemporaryFile() as t:

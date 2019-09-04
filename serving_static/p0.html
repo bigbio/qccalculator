@@ -22,7 +22,7 @@
 
 <body>  
 
-  <div class="navbar-fixed">
+  <div class="navbar-fixed" id="page-navbar">
     <ul id="dropdown1" class="dropdown-content">
           <li><a href="#!">one</a></li>
           <li><a href="#!">two</a></li>
@@ -44,143 +44,177 @@
   </div>
 
 
+  <div class="mzqc-upload-div" id="mzqc-upload-div">
+    <h1>{{message}} Welcome to QSpector!</h1>
 
-<div class="mzqc-upload-div" id="mzqc-upload-div">
-  <h1>{{message}} Welcome to QSpector!</h1>
-  <script>
-  $(document).on('change', '.btn', function(event) {
-    var reader = new FileReader();
+    <script>
+    function loadPlot(event) { 
+      var runi = event.target.getAttribute("runi");
+      var i = event.target.getAttribute("i");
+      var ifrid = "ifr_" + runi + "_" + i;
+      alert("beep" + ifrid);
+      var el = document.getElementById(ifrid);
+      alert(el.getAttribute("is_plot"));
+      if (true){
+      // if (el.hasAttribute("is_plot") && !el.getAttribute("is_plot")){
+        alert("so far ...");
+        $.ajax({
+          type: "POST",
+          url: "echo",
+          data: JSON.stringify(jsonObj.mzQC.runQualities[runi].qualityMetrics[i]),
+          success: function(resp){
+              alert("mommy!");
+              var respObj = resp;
+              // var ifr = $('<iframe/>', {
+              //     name: ifrid,
+              //     id: ifrid,
+              //     src: 'data:text/html;charset=utf-8,' + encodeURI(resp),
+              //     width: '600px',
+              //     height: '400px',
+              //     frameborder: "0",
+              //     load: function() {
+              //         alert("loaded")
+              //     }
+              // });
+              var ifr = document.createElement('iframe');
+              ifr.name = ifrid; 
+              ifr.id = ifrid; 
+              ifr.src = 'data:text/html;charset=utf-8,' + encodeURI(resp);
+              ifr.width = "450px";
+              ifr.height = "400px";
+              ifr.setAttribute('frameborder', "0");
+              ifr.setAttribute("is_plot", true);
+              el.setAttribute("is_plot", true);
+              el.parentNode.replaceChild(ifr, el);
+          },
+          error: function(resp){
+            alert(jsonObj.mzQC.version);
+          },
+          dataType: "json",
+          contentType : "application/json"
+        });
+      }
+    };
 
-    reader.onload = function(event) {
-      var jsonObj = JSON.parse(event.target.result);
-      alert(jsonObj.mzQC.creationDate);
-      $.ajax({
-      type: "POST",
-      url: "echo",
-      data: JSON.stringify(jsonObj.mzQC.runQualities[0].qualityMetrics[6]),
-      success: function(resp){
-          // alert(resp); // works
-          var respObj = resp;
-          var ifr = $('<iframe/>', {
-              name: 'myiframe',
-              id: 'myiframe',
-              src: 'data:text/html;charset=utf-8,' + encodeURI(resp),
-              width: '600px',
-              height: '400px',
-              frameborder: "0",
-              load: function() {
-                  alert("loaded")
-              }
-          })
-          $('.mzqc-upload-div').append(ifr);
-          var iframeDocument = document.getElementById('myiframe').contentDocument;
-          iframeDocument.open();
-          iframeDocument.write(resp);
-          iframeDocument.close();
-      },
-      error: function(resp){
-        alert(jsonObj.mzQC.version);
-      },
-      dataType: "json",
-      contentType : "application/json"
+    var jsonObj;
+    $(document).on('change', '.btn', function(event) {
+      var reader = new FileReader();
+
+      reader.onload = function(event) {
+        jsonObj = JSON.parse(event.target.result);
+        alert(jsonObj.mzQC.creationDate);
+        
+        var runi;
+        for (runi = 0; runi < jsonObj.mzQC.runQualities.length; runi++) { 
+          var i;
+          for (i = 0; i < jsonObj.mzQC.runQualities[runi].qualityMetrics.length; ++i) {
+              var qmn = jsonObj.mzQC.runQualities[runi].qualityMetrics[i].name;
+ 
+              var discol = document.createElement('div');
+              discol.setAttribute('class','col s12 m6 l6 card large');
+              discol.id="colcard_" + runi + "_" + i; 
+              
+              var discardico = document.createElement('div');
+              discardico.setAttribute('class','card-image waves-effect waves-block waves-light');
+              var inner1 = document.createElement('i');
+              inner1.setAttribute('class','activator large material-icons');
+              inner1.textContent="insert_chart"; 
+              inner1.setAttribute('runi', runi);
+              inner1.setAttribute('i',i);
+              inner1.addEventListener("click", loadPlot);
+
+              discardico.appendChild(inner1);
+
+              var discardface = document.createElement('div');
+              discardface.setAttribute('class','card-content');
+              var spanel1 = document.createElement('span');
+              spanel1.setAttribute('class','card-title activator grey-text text-darken-4');
+              spanel1.setAttribute('runi', runi);
+              spanel1.setAttribute('i',i);
+              spanel1.addEventListener("click", loadPlot);
+              spanel1.textContent = qmn; 
+              var inner2 = document.createElement('i');
+              inner2.setAttribute('class','material-icons right');
+              inner2.textContent="more_vert";  
+              var par = document.createElement('p');
+              par.textContent="Some more description if you fancy"; 
+              spanel1.appendChild(inner2);
+              discardface.appendChild(spanel1);
+              discardface.appendChild(par);
+
+              var discardcont = document.createElement('div');
+              discardcont.setAttribute('class','card-reveal');
+              var spanel2 = document.createElement('span');
+              spanel2.setAttribute('class','card-title grey-text text-darken-4');
+              var ifr = document.createElement('iframe');
+              ifr.name = "ifr_" + runi + "_" + i; 
+              ifr.id = "ifr_" + runi + "_" + i; 
+              var limg = "<center><img src='http://localhost:5000/lib/hamster.gif' height='130' width='180' align='middle'></center>";
+              ifr.src = 'data:text/html;charset=utf-8,' + encodeURI(limg);
+              ifr.setAttribute('frameborder', "0");
+              ifr.setAttribute("is_plot", false);
+              spanel2.appendChild(ifr);
+              var inner3 = document.createElement('i');
+              inner3.setAttribute('class','material-icons right');
+              inner3.textContent="close";  
+              spanel2.appendChild(inner3);
+              discardcont.appendChild(spanel2);
+
+              discol.appendChild(discardico);
+              discol.appendChild(discardface);
+              discol.appendChild(discardcont);
+              
+              document.getElementById('metric-container').appendChild(discol);
+          }
+        }
+      }
+
+      reader.readAsText(event.target.files[0]);
     });
+    </script> 
 
-    }
-
-    reader.readAsText(event.target.files[0]);
-  });
-  </script> 
-
-  <form action="#">
-    <div class="file-field input-field">
-      <div class="btn">
-        <span>Read mzQC</span>
-        <input type="file">
-      </div>
-      <div class="file-path-wrapper">
-        <input class="file-path validate" type="text">
-      </div>
-    </div>
-  </form>
-      
-</div>
-
-
-<div class="container row center-align" id="metric-container">
-
-
-      <div class="col s12 m6 l4 card" id="c1">
-        <div class="card-image waves-effect waves-block waves-light">
-            <i class="activator large material-icons">insert_chart</i>
-            <!-- <img class="activator" src="https://raw.githubusercontent.com/xvrdm/ggrough/master/man/figures/homepage_eg.png"> -->
+    <form action="#">
+      <div class="file-field input-field">
+        <div class="btn">
+          <span>Read mzQC</span>
+          <input type="file">
         </div>
-        <div class="card-content">
-          <span class="card-title activator grey-text text-darken-4">Reveal metric plot<i class="material-icons right">more_vert</i></span>
-          <p>Don't click me, click the icon</p>
-        </div>
-        <div class="card-reveal">
-          <span class="card-title grey-text text-darken-4">tolp cirtem laeveR<i class="material-icons right">close</i></span>
-          <p>Here is some more information about this product that is only revealed once clicked on.</p>
+        <div class="file-path-wrapper">
+          <input class="file-path validate" type="text">
         </div>
       </div>
-
-      <div class="col s12 m6 l4 card" id="c2">
-          <div class="card-image waves-effect waves-block waves-light">
-              <i class="activator large material-icons">insert_chart</i>
-              <!-- <img class="activator" src="https://raw.githubusercontent.com/xvrdm/ggrough/master/man/figures/homepage_eg.png"> -->
-          </div>
-          <div class="card-content">
-            <span class="card-title activator grey-text text-darken-4">Reveal metric plot<i class="material-icons right">more_vert</i></span>
-            <p>Don't click me, click the icon</p>
-          </div>
-          <div class="card-reveal">
-            <span class="card-title grey-text text-darken-4">tolp cirtem laeveR<i class="material-icons right">close</i></span>
-            <p>Here is some more information about this product that is only revealed once clicked on.</p>
-          </div>
-      </div>
-
-      <div class="col s12 m6 l4 card" id="c3">
-            <div class="card-image waves-effect waves-block waves-light">
-                <i class="activator large material-icons">insert_chart</i>
-                <!-- <img class="activator" src="https://raw.githubusercontent.com/xvrdm/ggrough/master/man/figures/homepage_eg.png"> -->
-            </div>
-            <div class="card-content">
-              <span class="card-title activator grey-text text-darken-4">Reveal metric plot<i class="material-icons right">more_vert</i></span>
-              <p>Don't click me, click the icon</p>
-            </div>
-            <div class="card-reveal">
-              <span class="card-title grey-text text-darken-4">tolp cirtem laeveR<i class="material-icons right">close</i></span>
-              <p>Here is some more information about this product that is only revealed once clicked on.</p>
-            </div>
-      </div>
+    </form>
+        
+  </div>
 
 
+  <div class="container row center-align" id="metric-container">
 
-</div>   
+  </div>   
 
 
-<footer class="page-footer">
-    <div class="container">
-      <div class="row">
-        <div class="col l6 s12">
-          <h5 class="white-text">Footer Content</h5>
-          <p class="grey-text text-lighten-4">You can use rows and columns here to organize your footer content.</p>
-        </div>
-        <div class="col l4 offset-l2 s12">
-          <h5 class="white-text">Links</h5>
-          <ul>
-            <li><a class="grey-text text-lighten-3" href="#!">Link 1</a></li>
-          </ul>
-        </div>
-      </div>
-    </div>
-    <div class="footer-copyright">
+  <footer class="page-footer" id="page-footer">
       <div class="container">
-      © 2019 Copyright Text
-      <a class="grey-text text-lighten-4 right" href="#!">More Links</a>
+        <div class="row">
+          <div class="col l6 s12">
+            <h5 class="white-text">Footer Content</h5>
+            <p class="grey-text text-lighten-4">You can use rows and columns here to organize your footer content.</p>
+          </div>
+          <div class="col l4 offset-l2 s12">
+            <h5 class="white-text">Links</h5>
+            <ul>
+              <li><a class="grey-text text-lighten-3" href="#!">Link 1</a></li>
+            </ul>
+          </div>
+        </div>
       </div>
-    </div>
-</footer>
+      <div class="footer-copyright">
+        <div class="container">
+        © 2019 Copyright Text
+        <a class="grey-text text-lighten-4 right" href="#!">More Links</a>
+        </div>
+      </div>
+  </footer>
   
 </body>
 
