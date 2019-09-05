@@ -24,19 +24,23 @@ class PlotType(Enum):
     SVG = 2
     PLOTLY = 3
 
-def handle_plot_format(pp, plot_type: PlotType):
+def handle_plot_format(pp, plot_type: PlotType, hosturl="http://localhost", port=5000):
     if plot_type == PlotType.PLOTLY:
         plotly = importr('plotly')
         ppp = plotly.ggplotly(pp)
         htmlwidgets = importr('htmlwidgets')
+        serverstructure_library_destination = "lib"
         with tempfile.NamedTemporaryFile() as t:
-                htmlwidgets.saveWidget(ppp, t.name, libdir='lib', selfcontained = False)
+                htmlwidgets.saveWidget(ppp, t.name, libdir="replaceme", selfcontained = False)
                 # start stupid fix to get all the recent libs written in the flask lib directory
-                htmlwidgets.saveWidget(ppp, 'bof', libdir='lib', selfcontained = False)
+                htmlwidgets.saveWidget(ppp, 'bof', libdir=serverstructure_library_destination, selfcontained = False)
                 os.remove('bof')
                 # end stupid fix
                 with open(t.name, "r") as f:
                     s = f.read()
+                    s = s.replace("replaceme", "{h}{p}/{l}".format(h=hosturl, 
+                                                l=serverstructure_library_destination, 
+                                                p="" if port is None else ":"+str(port)))
         return s
     else:
         with tempfile.NamedTemporaryFile() as t:
@@ -58,7 +62,7 @@ def handle_plot_format(pp, plot_type: PlotType):
                     s = base64.b64encode(fb.read()).decode()
         return s
 
-def plot_TIC(tic_table, start_time, plot_type=PlotType.PNG):
+def plot_TIC(tic_table, start_time, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
     d= {'RT': robjects.POSIXct((tuple([start_time + datetime.timedelta(seconds=i) for i in tic_table.value['RT']]))),
         'int': robjects.FloatVector(tuple(tic_table.value['int']))   }
     dataf = robjects.DataFrame(d)
@@ -85,9 +89,9 @@ def plot_TIC(tic_table, start_time, plot_type=PlotType.PNG):
     # ltb = robjects.r('theme(plot.margin = unit(c(.1,1,.1,.1), "cm"))')
     # pp = pp + ltb
 
-    return handle_plot_format(pp, plot_type)
+    return handle_plot_format(pp, plot_type, hosturl, port)
 
-def plot_SN(table, mslevel=2, svg_plot=False):
+def plot_SN(table, mslevel=2, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
     d= {'SN': robjects.FloatVector(tuple(table.value['SN'])) }
     dataf = robjects.DataFrame(d)
     rinf = robjects.r('Inf')
@@ -106,7 +110,7 @@ def plot_SN(table, mslevel=2, svg_plot=False):
     
     return handle_plot_format(pp, svg_plot)
 
-def plot_dppm(psm_table, svg_plot=False):
+def plot_dppm(psm_table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
     d= {'deltaPPM': robjects.FloatVector(tuple(psm_table.value['delta_ppm']))   }
     dataf = robjects.DataFrame(d)
     rinf = robjects.r('Inf')
@@ -126,7 +130,7 @@ def plot_dppm(psm_table, svg_plot=False):
     
     return handle_plot_format(pp, svg_plot)
 
-def plot_lengths(psm_table, svg_plot=False):
+def plot_lengths(psm_table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
     regex_mod = r'(\([^\(]*\))'
     regex_noaa = r'([^A-Za-z])'
     d= {'PeptideSequence': robjects.StrVector(tuple(psm_table.value['peptide_sequence'])),
@@ -150,7 +154,7 @@ def plot_lengths(psm_table, svg_plot=False):
 
     return handle_plot_format(pp, svg_plot)
 
-def plot_topn(prec_table, surv_table, svg_plot=False):
+def plot_topn(prec_table, surv_table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
     h = np.histogram(prec_table.value['RT'], bins=surv_table.value['RT']+[surv_table.value['RT'][-1]+surv_table.value['RT'][-2]])
 
     d= {'SN': robjects.FloatVector(tuple(surv_table.value['SN'])), 
@@ -175,7 +179,7 @@ def plot_topn(prec_table, surv_table, svg_plot=False):
 
     return handle_plot_format(pp, svg_plot)
 
-def plot_topn_sn(prec_table, surv_table, svg_plot=False):
+def plot_topn_sn(prec_table, surv_table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
     h = np.histogram(prec_table.value['RT'], bins=surv_table.value['RT']+[surv_table.value['RT'][-1]+surv_table.value['RT'][-2]])
     qs =  np.quantile(surv_table.value['SN'], [.25,.5,.75])
     d= {'SN': robjects.FloatVector(tuple(surv_table.value['SN'])), 
@@ -202,7 +206,7 @@ def plot_topn_sn(prec_table, surv_table, svg_plot=False):
 
     return handle_plot_format(pp, svg_plot)
 
-def plot_topn_rt(prec_table, surv_table, svg_plot=False):
+def plot_topn_rt(prec_table, surv_table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
     h = np.histogram(prec_table.value['RT'], bins=surv_table.value['RT']+[surv_table.value['RT'][-1]+surv_table.value['RT'][-2]])
 
     d= {'SN': robjects.FloatVector(tuple(surv_table.value['SN'])), 
@@ -233,7 +237,7 @@ def plot_topn_rt(prec_table, surv_table, svg_plot=False):
     # TODO also plot real histogram with color of SN or target/decoy?
     return handle_plot_format(pp, svg_plot)
 
-def plot_idmap(prec_table, psm_table, svg_plot=False):
+def plot_idmap(prec_table, psm_table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
     d_psm= {'MZ': robjects.FloatVector(tuple(psm_table.value['MZ'])), 
         'RT': robjects.POSIXct((tuple([datetime.datetime.fromtimestamp(i) for i in psm_table.value['RT']]))), 
         'col': robjects.FactorVector(tuple(["identified"]*len(psm_table.value['MZ']))) }
@@ -270,7 +274,7 @@ def plot_idmap(prec_table, psm_table, svg_plot=False):
     # TODO also plot real histogram with color of SN or target/decoy?
     return handle_plot_format(pp, svg_plot)
 
-def plot_charge(prec_table, psm_table=None, svg_plot=False):
+def plot_charge(prec_table, psm_table=None, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
     d_prc= {'c': robjects.IntVector(tuple(prec_table.value['c'])), 
         'col': robjects.FactorVector(tuple(["recorded"]*len(prec_table.value['c']))) }
     dataf = robjects.DataFrame(d_prc)
@@ -300,7 +304,7 @@ def plot_charge(prec_table, psm_table=None, svg_plot=False):
     # TODO also plot real histogram with color of SN or target/decoy?
     return handle_plot_format(pp, svg_plot)
 
-def plot_peaknum(table, mslevel=2, svg_plot=False):
+def plot_peaknum(table, mslevel=2, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
     d= {'peakcount': robjects.IntVector(tuple(table.value['peakcount']))}
     dataf = robjects.DataFrame(d)
     scales = importr('scales')
@@ -321,7 +325,7 @@ def plot_peaknum(table, mslevel=2, svg_plot=False):
 
     return handle_plot_format(pp, svg_plot)
 
-def plot_intensities(table, svg_plot=False):
+def plot_intensities(table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
     grdevices = importr('grDevices')
     d= {'RT': robjects.POSIXct((tuple([datetime.datetime.fromtimestamp(i) for i in table.value['RT']]))),
         'int': robjects.FloatVector(tuple(table.value['int']))}
@@ -365,7 +369,7 @@ def plot_intensities(table, svg_plot=False):
 
     return handle_plot_format(pp, svg_plot)
 
-def plot_events(tic_table, surv_table, prec_table, psm_table=None, svg_plot=False):
+def plot_events(tic_table, surv_table, prec_table, psm_table=None, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
     datasources = [("Chromatogram", tic_table),("MS1",surv_table),("MS2", prec_table)]
     if psm_table:
         datasources.append(("Identifications",psm_table))
