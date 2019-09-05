@@ -104,10 +104,10 @@ app = Flask(__name__, template_folder='serving_static', static_url_path='/lib', 
 @app.route('/')
 def root():
     message = "Hello there!"
-    return render_template('p0.html', message=message)
+    return render_template('qspector.html', message=message)
 
 @app.route('/echo', methods=['POST'])
-def hello():
+def plotly_echo():
     if request.is_json:
         print("start")
         content = request.json
@@ -123,4 +123,4 @@ def hello():
 if __name__ == "__main__":
     app.run(debug=True, port=PORT)
 
-#~ python flask_p0.py
+#~ python qspector.py
