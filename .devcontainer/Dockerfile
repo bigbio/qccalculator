@@ -72,8 +72,10 @@ RUN Rscript -e "library('devtools'); install_github('twitter/AnomalyDetection')"
 #&& Rscript /tmp/packages.R
 
 
-RUN pip install numpy mypy pronto pytest jupyter rpy2 pyopenms==2.3.* flask
-#RUN pip install -e .  # devcontainer.json: "postCreateCommand": "pip install -e .",
+RUN pip install numpy mypy pyopenms==2.3.*
+RUN pip install pronto pytest jupyter rpy2  flask 
+RUN pip install git+'https://github.com/HUPO-PSI/mzQC@mzqc-pylib#egg=MZQC-0.0.1&subdirectory=pylib'
+#RUN pip install -e .  # devcontainer.json: "postCreateCommand": "pip install -e ."
 
 ARG USERNAME=vscode
 ARG USER_UID=1000

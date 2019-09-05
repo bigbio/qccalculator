@@ -8,6 +8,6 @@
 	"settings": {
 		"python.pythonPath": "/usr/local/bin/python"
 	},
-	"postCreateCommand": "sudo pip install -e git+'https://github.com/HUPO-PSI/mzQC@mzqc-pylib#egg=MZQC-0.0.1&subdirectory=pylib'",
+	"postCreateCommand": "sudo pip install -e .",
 	"runArgs": ["-u", "vscode"]
 }

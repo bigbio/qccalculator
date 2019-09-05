@@ -8,3 +8,7 @@
 src/pip-delete-this-directory\.txt
 
 src/
+
+MZQC\.egg-info/
+
+QCCalculator\.egg-info/
