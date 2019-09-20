@@ -8,6 +8,7 @@ from rpy2.rinterface_lib.embedded import RRuntimeError
 from rpy2.robjects.lib.dplyr import DataFrame
 from rpy2.robjects.lib.dplyr import (mutate, group_by, summarize)
 from rpy2.rinterface import parse
+import rpy2.robjects.numpy2ri
 import warnings
 import math, datetime
 import tempfile
@@ -17,7 +18,11 @@ import numpy as np
 from enum import Enum
 import os
 from statistics import mean, median, stdev
-
+from typing import List, Dict, Set, Any, Optional, Callable
+import pyopenms as oms
+from collections import defaultdict
+import itertools
+from Bio import SeqIO, SeqRecord
 
 class PlotType(Enum):
     PNG = 1
@@ -108,7 +113,7 @@ def plot_SN(table, mslevel=2, plot_type=PlotType.PNG, hosturl="http://localhost"
         ggplot2.labs(x="S/N") + \
         ggplot2.ggtitle("S/N distribution in MS{} spectra".format(str(mslevel)))
     
-    return handle_plot_format(pp, svg_plot)
+    return handle_plot_format(pp, plot_type, hosturl, port)
 
 def plot_dppm(psm_table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
     d= {'deltaPPM': robjects.FloatVector(tuple(psm_table.value['delta_ppm']))   }
@@ -128,7 +133,39 @@ def plot_dppm(psm_table, plot_type=PlotType.PNG, hosturl="http://localhost", por
         ggplot2.labs(x=parse('paste(Delta, "ppm")'), y="Frequency density")  + \
         ggplot2.ggtitle("Mass error distribution")
     
-    return handle_plot_format(pp, svg_plot)
+    return handle_plot_format(pp, plot_type, hosturl, port)
+
+def plot_scorecorrelatenoise(psm_table, prec_table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
+
+
+    npa_psm = np.array([psm_table.value['RT'], 
+                        psm_table.value['score']])
+    npa_psm = npa_psm[:,npa_psm[0].argsort()]
+    
+    npa_prc = np.array([prec_table.value['RT'],
+                        prec_table.value['SN']])
+    npa_prc = npa_prc[:,npa_prc[0].argsort()]
+
+    # which of these are identified???
+    idinter = np.intersect1d(np.around(npa_prc[0], decimals=4),np.around(npa_psm[0], decimals=4), assume_unique=True, return_indices=True)
+    rpy2.robjects.numpy2ri.activate()
+    dataf = robjects.DataFrame( {'SN': npa_prc[:,idinter[1]][1] ,
+                                'score': npa_psm[:,idinter[2]][1] })
+    
+    stats = importr('stats')
+    base = importr('base')
+    r2 = np.around(np.float(base.summary(stats.lm('SN~score^2', data=dataf))[7][0]), decimals=4)  # 7 is r.squared, 8 is adj.r.squared - find out more with items()
+    # TODO check 
+    c0 = robjects.r('c(0,0)')
+    pp = ggplot2.ggplot(dataf) + \
+        ggplot2.aes_string(x='score', y='SN') + \
+        ggplot2.geom_point() + \
+        ggplot2.geom_smooth(method = "lm", formula = "y~poly(x,2)", se=False) + \
+        ggplot2.scale_x_continuous(expand=c0) + \
+        ggplot2.scale_y_continuous(expand=c0) + \
+        ggplot2.ggtitle("ID score and noise correlation (quadratic R.squared={r2})".format(r2=r2)) 
+
+    return handle_plot_format(pp, plot_type, hosturl, port)
 
 def plot_lengths(psm_table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
     regex_mod = r'(\([^\(]*\))'
@@ -152,7 +189,7 @@ def plot_lengths(psm_table, plot_type=PlotType.PNG, hosturl="http://localhost", 
         ggplot2.ggtitle("Length distribution of identified peptide sequences")
         # parse('paste(Delta, "ppm")' does not work in ggplot2.ggtitle
 
-    return handle_plot_format(pp, svg_plot)
+    return handle_plot_format(pp, plot_type, hosturl, port)
 
 def plot_topn(prec_table, surv_table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
     h = np.histogram(prec_table.value['RT'], bins=surv_table.value['RT']+[surv_table.value['RT'][-1]+surv_table.value['RT'][-2]])
@@ -177,7 +214,7 @@ def plot_topn(prec_table, surv_table, plot_type=PlotType.PNG, hosturl="http://lo
         ggplot2.labs(y="Count")  + \
         ggplot2.ggtitle("TopN sampling")
 
-    return handle_plot_format(pp, svg_plot)
+    return handle_plot_format(pp, plot_type, hosturl, port)
 
 def plot_topn_sn(prec_table, surv_table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
     h = np.histogram(prec_table.value['RT'], bins=surv_table.value['RT']+[surv_table.value['RT'][-1]+surv_table.value['RT'][-2]])
@@ -204,7 +241,7 @@ def plot_topn_sn(prec_table, surv_table, plot_type=PlotType.PNG, hosturl="http:/
         ggplot2.ggtitle("TopN sampling")
         # parse('paste(Delta, "ppm")' does not work in ggplot2.ggtitle
 
-    return handle_plot_format(pp, svg_plot)
+    return handle_plot_format(pp, plot_type, hosturl, port)
 
 def plot_topn_rt(prec_table, surv_table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
     h = np.histogram(prec_table.value['RT'], bins=surv_table.value['RT']+[surv_table.value['RT'][-1]+surv_table.value['RT'][-2]])
@@ -235,7 +272,7 @@ def plot_topn_rt(prec_table, surv_table, plot_type=PlotType.PNG, hosturl="http:/
 
 
     # TODO also plot real histogram with color of SN or target/decoy?
-    return handle_plot_format(pp, svg_plot)
+    return handle_plot_format(pp, plot_type, hosturl, port)
 
 def plot_idmap(prec_table, psm_table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
     d_psm= {'MZ': robjects.FloatVector(tuple(psm_table.value['MZ'])), 
@@ -272,7 +309,34 @@ def plot_idmap(prec_table, psm_table, plot_type=PlotType.PNG, hosturl="http://lo
     pp = pp + ltb
 
     # TODO also plot real histogram with color of SN or target/decoy?
-    return handle_plot_format(pp, svg_plot)
+    return handle_plot_format(pp, plot_type, hosturl, port)
+
+def plot_gravy(gravy_table, start_time, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
+    d= {'RT': robjects.POSIXct((tuple([start_time + datetime.timedelta(seconds=i) for i in tic_table.value['RT']]))),
+        'gravy': robjects.FloatVector(tuple(gravy_table.value['gravy'])) }
+    dataf = robjects.DataFrame(d)
+    scales = importr('scales')
+    c0 = robjects.r('c(0,0)')
+
+    lim_maj=int(max(tic_table.value['RT'])//(60*30))
+    lim_min=int(max(tic_table.value['RT'])//(60*10))+1
+    b_maj=robjects.POSIXct(tuple([start_time + datetime.timedelta(seconds=60*30* i) for i in range(0,lim_maj+1)]))
+    b_min=robjects.POSIXct(tuple([start_time + datetime.timedelta(seconds=60*10* i) for i in range(0,lim_min+1)]))
+
+    axislabels = robjects.StrVector(tuple([(datetime.datetime.fromtimestamp(60*30* i)).strftime("%H:%M") for i in range(0,lim_maj+1)]))
+
+    pp = ggplot2.ggplot(dataf) + \
+        ggplot2.geom_point(alpha=0.5) + \
+        ggplot2.aes_string(x='RT', y='int') + \
+        ggplot2.scale_x_datetime(breaks=b_maj, minor_breaks=b_min, labels = axislabels, expand=c0) + \
+        ggplot2.scale_y_continuous(expand=c0) + \
+        ggplot2.labs(y="GRAVY", x="Time") + \
+        ggplot2.ylim(robjects.r('c(-3,3)')) + \
+        ggplot2.geom_line(y=0, colour="blue") + \
+        ggplot2.stat_smooth(colour="red", method="loess", span=0.2) + \
+        ggplot2.ggtitle("Hydropathy index (Kyte-Doolittle)")
+
+    return handle_plot_format(pp, plot_type, hosturl, port)
 
 def plot_charge(prec_table, psm_table=None, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
     d_prc= {'c': robjects.IntVector(tuple(prec_table.value['c'])), 
@@ -302,7 +366,7 @@ def plot_charge(prec_table, psm_table=None, plot_type=PlotType.PNG, hosturl="htt
         pp = pp + ggplot2.geom_bar(data=dataf_id)
 
     # TODO also plot real histogram with color of SN or target/decoy?
-    return handle_plot_format(pp, svg_plot)
+    return handle_plot_format(pp, plot_type, hosturl, port)
 
 def plot_peaknum(table, mslevel=2, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
     d= {'peakcount': robjects.IntVector(tuple(table.value['peakcount']))}
@@ -323,9 +387,10 @@ def plot_peaknum(table, mslevel=2, plot_type=PlotType.PNG, hosturl="http://local
         ggplot2.labs(y="Count")  + \
         ggplot2.ggtitle("Peak count distribution for MS{} spectra".format(str(mslevel)))
 
-    return handle_plot_format(pp, svg_plot)
+    return handle_plot_format(pp, plot_type, hosturl, port)
 
 def plot_intensities(table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
+    # TODO 
     grdevices = importr('grDevices')
     d= {'RT': robjects.POSIXct((tuple([datetime.datetime.fromtimestamp(i) for i in table.value['RT']]))),
         'int': robjects.FloatVector(tuple(table.value['int']))}
@@ -361,14 +426,14 @@ def plot_intensities(table, plot_type=PlotType.PNG, hosturl="http://localhost", 
 
     pp = cow.plot_grid(ht,bx, ncol = 1, align = 'v', axis = 'l', rel_heights = robjects.r('c(1,.25)'))
 
-
     # grdevices.png(file="tests/grid_png_func.png", width=512, height=512)
     # c = cow.plot_grid(ht,bx, ncol = 1, align = 'v', axis = 'l', rel_heights = robjects.r('c(1,.25)'))
     # c.plot()
     # grdevices.dev_off()
 
-    return handle_plot_format(pp, svg_plot)
+    return handle_plot_format(pp, plot_type, hosturl, port)
 
+# TODO unfinished
 def plot_events(tic_table, surv_table, prec_table, psm_table=None, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
     datasources = [("Chromatogram", tic_table),("MS1",surv_table),("MS2", prec_table)]
     if psm_table:
@@ -418,6 +483,78 @@ def plot_events(tic_table, surv_table, prec_table, psm_table=None, plot_type=Plo
         ggplot2.ggtitle("Quartiles of Chromatographic, MS1, MS2, and identification events over RT") 
 
     dataf.to_csvfile('tests/events.csv')
-    return handle_plot_format(pp, svg_plot)
+    return handle_plot_format(pp, plot_type, hosturl, port)
         # ggplot2.scale_y_datetime(breaks=b_maj, minor_breaks=b_min,labels = scales.date_format("%H:%M"), expand=c0) + \
+
+def plot_targetdecoy(peptideids: List[oms.PeptideIdentification], plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
+    rid = defaultdict(lambda: defaultdict(int))
+
+    for idspec in peptideids:
+        for rank,psm in enumerate(idspec.getHits()):
+            rid[rank+1][psm.getMetaValue('target_decoy').decode()] += 1
+
+    # TODO beware no decoy in test data
+
+    scales = importr('scales')
+    c0 = robjects.r('c(0,0)')
+
+    transposed_rid = list(zip(*[(list(itertools.chain(*sorted(x[1].items()))))+[x[0]] for x in rid.items()]))
+    d= {'type': robjects.StrVector(transposed_rid[0]),
+        'count': robjects.IntVector(transposed_rid[1]) ,
+        'rank': robjects.IntVector(transposed_rid[2])  }
+    dataf = robjects.DataFrame(d)
+    pp = ggplot2.ggplot(dataf) + \
+            ggplot2.aes_string(fill='type', y='count', x='rank') + \
+            ggplot2.geom_bar(position='dodge', stat='identity') + \
+            ggplot2.scale_x_continuous(breaks=scales.pretty_breaks(max(transposed_rid[2]))) + \
+            ggplot2.scale_y_continuous(expand=c0) + \
+            ggplot2.labs(y="Count", x='Rank') + \
+            ggplot2.ggtitle("Target/Decoy")
+
+
+    return handle_plot_format(pp, plot_type, hosturl, port)
+
+def plot_coverage(proteinids: oms.ProteinIdentification, 
+                peptideids: List[oms.PeptideIdentification], 
+                fasta= Dict[str,SeqRecord.SeqRecord],
+                plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
+
+    # with open("tests/iPRG2015_decoy.fasta","r") as f:
+    #     fasta = SeqIO.to_dict(SeqIO.parse(f, "fasta"))
+    nup = list()
+    for p in proteinids.getHits():
+        ac = p.getAccession().decode()
+        nup.append(oms.ProteinHit(p)) 
+        nup[-1].setSequence(str(fasta[ac].seq))
+
+    proteinids.setHits(nup)
+    proteinids.computeCoverage(peptideids)
+
+    acc: List[str] = list()
+    cov: List[float] = list()
+    plen: List[int] = list()
+    td: List[str] = list()
+    for p in proteinids.getHits():
+        acc.append(p.getAccession().decode())
+        cov.append(p.getCoverage())
+        plen.append(len(p.getSequence().decode()))
+        td.append('decoy' if 'decoy' in p.getAccession().decode().lower() else 'target')
+
+    d = {'Accession': robjects.StrVector(tuple(acc)),
+        'Coverage': robjects.FloatVector(tuple(cov)),
+        'TD': robjects.FactorVector(tuple(td)),
+        'Length': robjects.FloatVector(tuple(plen))}
+    dataf = robjects.DataFrame(d)
+    c0 = robjects.r('c(0,0)')
+    pp = ggplot2.ggplot(dataf) + \
+                ggplot2.aes_string(y='Coverage', x='Length', text='Accession', color='TD') + \
+                ggplot2.geom_point() + \
+                ggplot2.scale_x_continuous(expand=c0) + \
+                ggplot2.scale_y_continuous(expand=c0) + \
+                ggplot2.labs(y="Coverage", x='Protein length') + \
+                ggplot2.ggtitle("Protein DB Coverage")
+
+    # with open("tests/plotly_test/deleteme.html","w") as f:
+    #     f.write(qcplots.handle_plot_format(pp, qcplots.PlotType.PLOTLY,hosturl="",port=""))
+    return handle_plot_format(pp, plot_type, hosturl, port)
 
