@@ -22,7 +22,6 @@ from typing import List, Dict, Set, Any, Optional, Callable
 import pyopenms as oms
 from collections import defaultdict
 import itertools
-from Bio import SeqIO, SeqRecord
 
 class PlotType(Enum):
     PNG = 1
@@ -133,6 +132,40 @@ def plot_dppm(psm_table, plot_type=PlotType.PNG, hosturl="http://localhost", por
         ggplot2.labs(x=parse('paste(Delta, "ppm")'), y="Frequency density")  + \
         ggplot2.ggtitle("Mass error distribution")
     
+    return handle_plot_format(pp, plot_type, hosturl, port)
+
+def plot_dppm_over_time(psm_table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
+    d= {'RT': robjects.POSIXct((tuple([datetime.datetime.fromtimestamp(i) for i in psm_table.value['RT']]))),
+        'deltaPPM': robjects.FloatVector(tuple(psm_table.value['delta_ppm']))   }
+    dataf = robjects.DataFrame(d)
+    rinf = robjects.r('Inf')
+    c0 = robjects.r('c(0,0)')
+    c10 = robjects.r('c(-10,10)')
+    
+    b=robjects.POSIXct(tuple([datetime.datetime.fromtimestamp(60*10)]))
+    lim_maj=int(max(psm_table.value['RT'])//(60*30))
+    lim_min=int(max(psm_table.value['RT'])//(60*10))+1
+    b_maj=robjects.POSIXct(tuple([datetime.datetime.fromtimestamp(60*30* i) for i in range(0,lim_maj+1)]))
+    b_min=robjects.POSIXct(tuple([datetime.datetime.fromtimestamp(60*10* i) for i in range(0,lim_min+1)]))
+
+    scales = importr('scales')
+    rinf = robjects.r('Inf')
+    c0 = robjects.r('c(0,0)')
+    c10 = robjects.r('c(-10,10)')
+
+
+    pp = ggplot2.ggplot(dataf) + \
+        ggplot2.geom_point(alpha=0.5) + \
+        ggplot2.aes_string(x='RT',y='deltaPPM') + \
+        ggplot2.scale_x_datetime(breaks=b_maj, minor_breaks=b_min, labels = scales.date_format("%H:%M"), expand=c0) + \
+        ggplot2.scale_y_continuous(expand=c0) + \
+        ggplot2.stat_smooth(colour="red", method="loess", span=0.2) + \
+        ggplot2.geom_hline(yintercept=0, colour="blue")  + \
+        ggplot2.geom_hline(yintercept=stdev(psm_table.value['delta_ppm']) ,linetype="dotted", colour="green")  + \
+        ggplot2.geom_hline(yintercept=-stdev(psm_table.value['delta_ppm']) ,linetype="dotted", colour="green")  + \
+        ggplot2.labs(y=parse('paste(Delta, "ppm")'), x="Time")  + \
+        ggplot2.ggtitle(parse('paste(Delta, "ppm over time")'))
+
     return handle_plot_format(pp, plot_type, hosturl, port)
 
 def plot_scorecorrelatenoise(psm_table, prec_table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
@@ -487,7 +520,7 @@ def plot_events(tic_table, surv_table, prec_table, psm_table=None, plot_type=Plo
         # ggplot2.scale_y_datetime(breaks=b_maj, minor_breaks=b_min,labels = scales.date_format("%H:%M"), expand=c0) + \
 
 def plot_targetdecoy(peptideids: List[oms.PeptideIdentification], plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
-    rid = defaultdict(lambda: defaultdict(int))
+    rid: Dict[Any] = defaultdict(lambda: defaultdict(int))
 
     for idspec in peptideids:
         for rank,psm in enumerate(idspec.getHits()):
@@ -514,36 +547,11 @@ def plot_targetdecoy(peptideids: List[oms.PeptideIdentification], plot_type=Plot
 
     return handle_plot_format(pp, plot_type, hosturl, port)
 
-def plot_coverage(proteinids: oms.ProteinIdentification, 
-                peptideids: List[oms.PeptideIdentification], 
-                fasta= Dict[str,SeqRecord.SeqRecord],
-                plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
-
-    # with open("tests/iPRG2015_decoy.fasta","r") as f:
-    #     fasta = SeqIO.to_dict(SeqIO.parse(f, "fasta"))
-    nup = list()
-    for p in proteinids.getHits():
-        ac = p.getAccession().decode()
-        nup.append(oms.ProteinHit(p)) 
-        nup[-1].setSequence(str(fasta[ac].seq))
-
-    proteinids.setHits(nup)
-    proteinids.computeCoverage(peptideids)
-
-    acc: List[str] = list()
-    cov: List[float] = list()
-    plen: List[int] = list()
-    td: List[str] = list()
-    for p in proteinids.getHits():
-        acc.append(p.getAccession().decode())
-        cov.append(p.getCoverage())
-        plen.append(len(p.getSequence().decode()))
-        td.append('decoy' if 'decoy' in p.getAccession().decode().lower() else 'target')
-
-    d = {'Accession': robjects.StrVector(tuple(acc)),
-        'Coverage': robjects.FloatVector(tuple(cov)),
-        'TD': robjects.FactorVector(tuple(td)),
-        'Length': robjects.FloatVector(tuple(plen))}
+def plot_coverage(coverage_table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
+    d = {'Accession': robjects.StrVector(tuple(coverage_table['Accession'])),
+        'Coverage': robjects.FloatVector(tuple(coverage_table['Coverage'])),
+        'TD': robjects.FactorVector(tuple(coverage_table['TD'])),
+        'Length': robjects.FloatVector(tuple(coverage_table['Length']))}
     dataf = robjects.DataFrame(d)
     c0 = robjects.r('c(0,0)')
     pp = ggplot2.ggplot(dataf) + \
@@ -558,3 +566,33 @@ def plot_coverage(proteinids: oms.ProteinIdentification,
     #     f.write(qcplots.handle_plot_format(pp, qcplots.PlotType.PLOTLY,hosturl="",port=""))
     return handle_plot_format(pp, plot_type, hosturl, port)
 
+def plot_traptime(table, mslevel=2, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
+    d= {'ioninjectiontime': robjects.FloatVector(tuple(table.value['iontraptime'])), 
+        'RT': robjects.POSIXct((tuple([datetime.datetime.fromtimestamp(i) for i in table.value['RT']]))) }
+    dataf = robjects.DataFrame(d)
+
+    m = mean(table.value['iontraptime'])
+
+    b=robjects.POSIXct(tuple([datetime.datetime.fromtimestamp(60*10)]))
+    lim_maj=int(max(table.value['RT'])//(60*30))
+    lim_min=int(max(table.value['RT'])//(60*10))+1
+    b_maj=robjects.POSIXct(tuple([datetime.datetime.fromtimestamp(60*30* i) for i in range(0,lim_maj+1)]))
+    b_min=robjects.POSIXct(tuple([datetime.datetime.fromtimestamp(60*10* i) for i in range(0,lim_min+1)]))
+
+    scales = importr('scales')
+    rinf = robjects.r('Inf')
+    c0 = robjects.r('c(0,0)')
+    c10 = robjects.r('c(-10,10)')
+    lt = robjects.r("as.POSIXct('{}', tz = '')".format(str(datetime.datetime.fromtimestamp(table.value['RT'][ len(table.value['RT'])//2 ]))))
+
+    pp = ggplot2.ggplot(dataf) + \
+        ggplot2.geom_line() + \
+        ggplot2.aes_string(x='RT',y='ioninjectiontime') + \
+        ggplot2.scale_x_datetime(breaks=b_maj, minor_breaks=b_min, labels = scales.date_format("%H:%M"), expand=c0) + \
+        ggplot2.scale_y_continuous(expand=c0) + \
+        ggplot2.stat_smooth(colour="red", method="loess", span=0.2) + \
+        ggplot2.labs(y="Ion injection time", x="Time")  + \
+        ggplot2.geom_text(ggplot2.aes_string(x=lt, y=rinf, label="'mean={}'".format(str(round(m,2))) ), hjust="left", vjust="top") + \
+        ggplot2.ggtitle("Ion injection time over RT")
+
+    return handle_plot_format(pp, plot_type, hosturl, port)
