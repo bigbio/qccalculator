@@ -192,7 +192,7 @@ def getBasicQuality(exp: oms.MSExperiment) -> mzqc.RunQuality:
     metrics.append(
         mzqc.QualityMetric(cvRef="QC", 
                 accession="QC:0000000", 
-                name="TIC", 
+                name="Acquisition table - TIC", 
                 value=tic_tab)
     )
 
@@ -328,7 +328,7 @@ def getIDQuality(exp: oms.MSExperiment, pro_ids: List[oms.ProteinIdentification]
             psm_tab['theoretical_weight'].append(tw)
 
             gravy_tab['RT'].append(pepi.getRT())
-            gravy_tab['RT'].append(ProtParam.ProteinAnalysis(tmp.getSequence().toUnmodifiedString().decode()).gravy())
+            gravy_tab['gravy'].append(ProtParam.ProteinAnalysis(tmp.getSequence().toUnmodifiedString().decode()).gravy())
     #varmod???         
     #   for (UInt w = 0; w < var_mods.size(); ++w)
     #   {
@@ -473,7 +473,8 @@ def getSamplingRatios(psm_table) -> List[mzqc.QualityMetric]:
     metrics.append(mzqc.QualityMetric(cvRef="QC", 
                 accession="QC:0000000", 
                 name="Sampling frequencies", 
-                value={'sampling rate': list(explicit_rate), 'frequencies': list(explicit_rate_counts)})
+                value={'sampling rate': list(explicit_rate), 
+                    'frequencies': list(explicit_rate_counts)})
     )
       
     return metrics
@@ -699,7 +700,6 @@ def getCoverageRatios(proteinids: oms.ProteinIdentification,
 
     return metrics
 
-
 # matching ends?  #internal 
 def matchEnzyme(enzre, pepseq):
     matches = np.array([x.start() if x.start()==x.end() else None for x in enzre.finditer(pepseq)])
@@ -715,7 +715,6 @@ def matchEnzyme(enzre, pepseq):
         internal_matches = len(matches)
 
     return (2 if is_matched else 1 if is_semi else 0, internal_matches)
-
 
 def getEnzymeContaminationMetrics(pepl, prol, force_enzymes = False) -> List[mzqc.QualityMetric]:
     metrics: List[mzqc.QualityMetric] = list() 

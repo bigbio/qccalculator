@@ -422,8 +422,8 @@ def plot_peaknum(table, mslevel=2, plot_type=PlotType.PNG, hosturl="http://local
 
     return handle_plot_format(pp, plot_type, hosturl, port)
 
-def plot_intensities(table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
-    # TODO 
+# TODO unfinished
+def plot_intensities(table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):    
     grdevices = importr('grDevices')
     d= {'RT': robjects.POSIXct((tuple([datetime.datetime.fromtimestamp(i) for i in table.value['RT']]))),
         'int': robjects.FloatVector(tuple(table.value['int']))}
@@ -520,7 +520,7 @@ def plot_events(tic_table, surv_table, prec_table, psm_table=None, plot_type=Plo
         # ggplot2.scale_y_datetime(breaks=b_maj, minor_breaks=b_min,labels = scales.date_format("%H:%M"), expand=c0) + \
 
 def plot_targetdecoy(peptideids: List[oms.PeptideIdentification], plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
-    rid: Dict[Any] = defaultdict(lambda: defaultdict(int))
+    rid: Dict[int,Any] = defaultdict(lambda: defaultdict(int))
 
     for idspec in peptideids:
         for rank,psm in enumerate(idspec.getHits()):
