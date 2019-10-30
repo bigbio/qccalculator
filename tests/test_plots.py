@@ -3,6 +3,7 @@ from MZQC import MZQCFile as mzqc
 from QCCalculator.qcplots import *
 
 import tempfile
+import datetime
 import base64
 import re
 
@@ -13,17 +14,19 @@ rq = tqc.runQualities[0]
 # TODO issues
 # * mzqc.JsonSerialisable.FromJson(f.read())['mzQC']
 # * inf.fileProperties are quality metrics, not cv params
+# * runQualities is list of SetQuality
 
 cmpltn = rq.metadata.inputFiles[0].fileProperties[0].value
-strt:datetime.datetime = datetime.datetime.strptime(cmpltn, '%Y-%m-%d %H:%M:%S') - datetime.timedelta(seconds=max(rq.qualityMetrics[6].value['RT']))
+maxrt = max(list(filter(lambda x: x.name=="Total ion current chromatogram", rq.qualityMetrics))[0].value['RT'])
+strt:datetime.datetime = datetime.datetime.strptime(cmpltn, '%Y-%m-%d %H:%M:%S') - datetime.timedelta(seconds=maxrt)
 
 class TestSvgFunctionality:
     def test_tic_svg(self):
         metric = list(filter(lambda x: x.name=="Total ion current chromatogram", rq.qualityMetrics))
         assert len(metric) == 1
         svg = plot_TIC(metric[0],strt, PlotType.SVG)
-        # with open("tests/tic_svg_funcrq.qualityMetrics[6].name == "Total ion current chromatogram".svg","w") as f:
-        #     f.write(svg)rq.qualityMetrics[6].name == "Total ion current chromatogram"
+        # with open("tests/plot_test_files/tic_svg_func.svg","w") as f:
+        #     f.write(svg)
         with open("tests/plot_test_files/tic_svg_func.svg","r") as f:
             cmp_r = f.read()
         assert cmp_r == svg
@@ -35,18 +38,18 @@ class TestPlotFunctionality:
         metric = list(filter(lambda x: x.name=="Total ion current chromatogram", rq.qualityMetrics))
         assert len(metric) == 1
         tic = plot_TIC(metric[0],strt)
-        # with open("tests/plot_test_files/tic_png_func.png","wb") as fb:
+        # with open("tests/plot_test_files/_tic_png_func.png","wb") as fb:
         #     fb.write(base64.decodebytes(tic.encode()))
         with open("tests/plot_test_files/tic_png_func.png","rb") as fb:
             cmp_r = base64.b64encode(fb.read()).decode()
         assert cmp_r == tic
 
     def test_sn_png(self):
-        metric = list(filter(lambda x: x.name=="Spectrum acquisition metric values - MS1", rq.qualityMetrics))
+        metric = list(filter(lambda x: x.name=="Spectrum acquisition metric values - MS2", rq.qualityMetrics))
         assert len(metric) == 1
 
-        sn = plot_SN(metrics[0])
-        # with open("tests/plot_test_files/sn_png_func.png","wb") as fb:
+        sn = plot_SN(metric[0])
+        # with open("tests/plot_test_files/_sn_png_func.png","wb") as fb:
         #     fb.write(base64.decodebytes(sn.encode()))
         with open("tests/plot_test_files/sn_png_func.png","rb") as fb:
             cmp_r = base64.b64encode(fb.read()).decode()
@@ -79,11 +82,11 @@ class TestPlotFunctionality:
         assert len(metric) == 2
 
         topnrt = plot_topn_rt(metric[1], metric[0])
-        # with open("tests/plot_test_files/topn_rt_png_func.png","wb") as fb:
+        # with open("tests/plot_test_files/_topn_rt_png_func.png","wb") as fb:
         #     fb.write(base64.decodebytes(topnrt.encode()))
-        with open("tests/plot_test_files/topn_sn_png_func.png","rb") as fb:
+        with open("tests/plot_test_files/topn_rt_png_func.png","rb") as fb:
             cmp_r = base64.b64encode(fb.read()).decode()
-        assert cmp_r == topnsn
+        assert cmp_r == topnrt
 
     def test_idmap_png(self):
         metric = list(filter(lambda x: x.name=="Tandem spectrum metric values - MS2", rq.qualityMetrics))\

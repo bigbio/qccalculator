@@ -168,11 +168,12 @@ def plot_dppm_over_time(psm_table, plot_type=PlotType.PNG, hosturl="http://local
 
     return handle_plot_format(pp, plot_type, hosturl, port)
 
+# TODO needs cv refinement
 def plot_scorecorrelatenoise(psm_table, prec_table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
-
+    scrtyp = list(filter(lambda x: x!="RT" and x!="c", psm_table.value.keys()))[0]  # mah!
 
     npa_psm = np.array([psm_table.value['RT'], 
-                        psm_table.value['score']])
+                        psm_table.value[scrtyp]])
     npa_psm = npa_psm[:,npa_psm[0].argsort()]
     
     npa_prc = np.array([prec_table.value['RT'],
@@ -196,15 +197,17 @@ def plot_scorecorrelatenoise(psm_table, prec_table, plot_type=PlotType.PNG, host
         ggplot2.geom_smooth(method = "lm", formula = "y~poly(x,2)", se=False) + \
         ggplot2.scale_x_continuous(expand=c0) + \
         ggplot2.scale_y_continuous(expand=c0) + \
+        ggplot2.labs(x="score({})".format(scrtyp), y="S/N")  + \
         ggplot2.ggtitle("ID score and noise correlation (quadratic R.squared={r2})".format(r2=r2)) 
 
     return handle_plot_format(pp, plot_type, hosturl, port)
 
-def plot_lengths(psm_table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
+def plot_lengths(seq_table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
     regex_mod = r'(\([^\(]*\))'
     regex_noaa = r'([^A-Za-z])'
-    d= {'PeptideSequence': robjects.StrVector(tuple(psm_table.value['peptide_sequence'])),
-        'Length': robjects.IntVector(tuple([len(re.sub(regex_noaa, '', re.sub(regex_mod, '', x))) for x in psm_table.value['peptide_sequence']])) }
+    # TODO test this: '.(iTRAQ4plex)M(Oxidation)C(Carbamidomethyl)HNVNR'
+    d= {'PeptideSequence': robjects.StrVector(tuple(seq_table.value['peptide'])),
+        'Length': robjects.IntVector(tuple([len(re.sub(regex_noaa, '', re.sub(regex_mod, '', x))) for x in seq_table.value['peptide']])) }
     dataf = robjects.DataFrame(d)
     scales = importr('scales')
     rinf = robjects.r('Inf')
@@ -313,9 +316,9 @@ def plot_idmap(prec_table, psm_table, plot_type=PlotType.PNG, hosturl="http://lo
         'col': robjects.FactorVector(tuple(["identified"]*len(psm_table.value['MZ']))) }
     dataf_psm = robjects.DataFrame(d_psm)
 
-    d_prc= {'MZ': robjects.FloatVector(tuple(prec_table.value['MZ'])), 
+    d_prc= {'MZ': robjects.FloatVector(tuple(prec_table.value['precursor_mz'])), 
         'RT': robjects.POSIXct((tuple([datetime.datetime.fromtimestamp(i) for i in prec_table.value['RT']]))), 
-        'col': robjects.FactorVector(tuple(["recorded"]*len(prec_table.value['MZ']))) }
+        'col': robjects.FactorVector(tuple(["recorded"]*len(prec_table.value['precursor_mz']))) }
     dataf_prc = robjects.DataFrame(d_prc)
 
     b=robjects.POSIXct(tuple([datetime.datetime.fromtimestamp(60*10)]))
@@ -345,14 +348,14 @@ def plot_idmap(prec_table, psm_table, plot_type=PlotType.PNG, hosturl="http://lo
     return handle_plot_format(pp, plot_type, hosturl, port)
 
 def plot_gravy(gravy_table, start_time, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
-    d= {'RT': robjects.POSIXct((tuple([start_time + datetime.timedelta(seconds=i) for i in tic_table.value['RT']]))),
+    d= {'RT': robjects.POSIXct((tuple([start_time + datetime.timedelta(seconds=i) for i in gravy_table.value['RT']]))),
         'gravy': robjects.FloatVector(tuple(gravy_table.value['gravy'])) }
     dataf = robjects.DataFrame(d)
     scales = importr('scales')
     c0 = robjects.r('c(0,0)')
 
-    lim_maj=int(max(tic_table.value['RT'])//(60*30))
-    lim_min=int(max(tic_table.value['RT'])//(60*10))+1
+    lim_maj=int(max(gravy_table.value['RT'])//(60*30))
+    lim_min=int(max(gravy_table.value['RT'])//(60*10))+1
     b_maj=robjects.POSIXct(tuple([start_time + datetime.timedelta(seconds=60*30* i) for i in range(0,lim_maj+1)]))
     b_min=robjects.POSIXct(tuple([start_time + datetime.timedelta(seconds=60*10* i) for i in range(0,lim_min+1)]))
 
@@ -360,7 +363,7 @@ def plot_gravy(gravy_table, start_time, plot_type=PlotType.PNG, hosturl="http://
 
     pp = ggplot2.ggplot(dataf) + \
         ggplot2.geom_point(alpha=0.5) + \
-        ggplot2.aes_string(x='RT', y='int') + \
+        ggplot2.aes_string(x='RT', y='gravy') + \
         ggplot2.scale_x_datetime(breaks=b_maj, minor_breaks=b_min, labels = axislabels, expand=c0) + \
         ggplot2.scale_y_continuous(expand=c0) + \
         ggplot2.labs(y="GRAVY", x="Time") + \
@@ -372,8 +375,8 @@ def plot_gravy(gravy_table, start_time, plot_type=PlotType.PNG, hosturl="http://
     return handle_plot_format(pp, plot_type, hosturl, port)
 
 def plot_charge(prec_table, psm_table=None, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
-    d_prc= {'c': robjects.IntVector(tuple(prec_table.value['c'])), 
-        'col': robjects.FactorVector(tuple(["recorded"]*len(prec_table.value['c']))) }
+    d_prc= {'c': robjects.IntVector(tuple(prec_table.value['precursor_c'])), 
+        'col': robjects.FactorVector(tuple(["recorded"]*len(prec_table.value['precursor_c']))) }
     dataf = robjects.DataFrame(d_prc)
 
     scales = importr('scales')
