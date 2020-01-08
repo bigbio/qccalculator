@@ -1,0 +1,42 @@
+image: docker:latest
+
+stages:
+  - build
+  - test
+#  - deploy
+
+services:
+  - docker:dind
+
+before_script:
+  - 'echo $CI_REGISTRY_IMAGE'
+  - 'echo $CI_COMMIT_REF_SLUG'
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN dockerhub.ebi.ac.uk
+  - CI_REGISTRY=dockerhub.ebi.ac.uk
+  - CI_REGISTRY_IMAGE=$CI_REGISTRY/$CI_PROJECT_PATH
+  
+build:
+  stage: build
+  script:
+    - echo $CI_PROJECT_PATH
+    - echo $CI_COMMIT_REF_SLUG
+    - cp container/Dockerfile .
+    - docker build --pull -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG" .
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
+
+test:
+  stage: test
+  script: docker run "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG" /bin/bash -c "QCCalculator"
+
+#deploy:
+#  stage: deploy
+#  script:
+#  - mkdir -p glxy
+#  - id=$(docker create "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"_glxy)
+#  - docker cp $id:/tmp/gxml - > glxy/$CI_COMMIT_REF_SLUG.tar
+#  - docker rm -v $id
+#  artifacts:
+#    paths:
+#    - glxy/$CI_COMMIT_REF_SLUG.tar
+#  only:
+#  - master
