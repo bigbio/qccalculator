@@ -12,8 +12,12 @@ setup(
     long_description=long_description,
     install_requires=[
         "rpy2",
-        "MZQC",
+        "mzqc-pylib",
+        "Click",
         ],
     include_package_data=True,
-    scripts=['QCCalculator.py'] ,
+    #scripts=['bin/qspector/qspector.py'] ,
+    entry_points={
+        'console_scripts': ['QCCalculator = QCCalculator.cli:start']
+      }
 )
