@@ -1,4 +1,11 @@
 image: docker:latest
+build:
+  stage: build
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  script:
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
 
 stages:
   - build
@@ -9,15 +16,19 @@ services:
   - docker:dind
 
 before_script:
-  - 'echo $CI_REGISTRY_IMAGE'
-  - 'echo $CI_COMMIT_REF_SLUG'
-  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN dockerhub.ebi.ac.uk
+  # - 'echo $CI_REGISTRY_IMAGE'
+  # - 'echo $CI_COMMIT_REF_SLUG'
+  # - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN dockerhub.ebi.ac.uk
   - CI_REGISTRY=dockerhub.ebi.ac.uk
   - CI_REGISTRY_IMAGE=$CI_REGISTRY/$CI_PROJECT_PATH
   
 build:
   stage: build
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
   script:
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
     - echo $CI_PROJECT_PATH
     # - cp container/Dockerfile .
     # - docker build --pull -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG" .
