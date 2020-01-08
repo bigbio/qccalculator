@@ -71,11 +71,13 @@ RUN Rscript -e "library('devtools'); install_github('twitter/AnomalyDetection')"
 #"Hmisc", "cowplot", "shiny"), repos="http://cran.us.r-project.org", dependencies=TRUE)' > /tmp/packages.R \
 #&& Rscript /tmp/packages.R
 
-
+RUN pip install pip --upgrade
+RUN pip install setuptools --upgrade
 RUN pip install numpy mypy pyopenms==2.3.*
 RUN pip install pronto pytest jupyter rpy2 biopython flask 
-RUN pip install --force-reinstall git+'https://github.com/HUPO-PSI/mzQC@mzqc-pylib#egg=MZQC-0.0.1&subdirectory=pylib'
 RUN pip install --force-reinstall 'pytest<=5.0.1'
+RUN pip install -U git+https://github.com/bigbio/mzqc-pylib.git#egg=mzqc-pylib
+
 #RUN pip install -e .  # devcontainer.json: "postCreateCommand": "pip install -e ."
 
 ARG USERNAME=vscode

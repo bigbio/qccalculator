@@ -1,5 +1,5 @@
 from flask import Flask, request, render_template, jsonify
-from MZQC import MZQCFile as mzqc
+from mzqc import MZQCFile as mzqc
 import datetime
 import json
 import os
