@@ -6,7 +6,7 @@ import warnings
 import pronto
 from os.path import basename
 import pyopenms as oms
-from MZQC import MZQCFile as mzqc
+from mzqc import MZQCFile as mzqc
 from typing import List, Dict, Set, Any, Optional, Callable
 from collections import defaultdict
 from itertools import chain
