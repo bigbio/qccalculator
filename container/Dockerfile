@@ -1,4 +1,4 @@
-FROM python-r:3.6-3.5-full_qc_pack
+FROM mwalzer/python-r:3.6-3.5-full_qc_pack
  
 # RUN pip install pip --upgrade
 # RUN pip install setuptools --upgrade
