@@ -37,9 +37,11 @@ build:
 
 test:
   stage: test
+  image:
+    name: $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+    entrypoint: [""]
   script:
-    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN dockerhub.ebi.ac.uk 
-    - docker run $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG /bin/bash -c QCCalculator
+    - QCCalculator
 
 #deploy:
 #  stage: deploy
