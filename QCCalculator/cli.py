@@ -60,7 +60,8 @@ def start(output, zip):
 
 @start.command()
 @click.argument('filename', type=click.Path(exists=True))
-@click.option('--mzid', required=True, type=click.Path(exists=True), help="If you have a corresponding mzid file you need to pass it, too.")
+@click.option('--mzid', required=True, type=click.Path(exists=True), help="If you have a corresponding mzid file you need to pass it, too. Mutually exclusive to idxml.")
+@click.option('--idxml', required=True, type=click.Path(exists=True), help="If you have a corresponding idxml file you need to pass it, too. Mutually exclusive to mzid.")
 def full(filename, mzid=None): 
     """Calculate all possible metrics for these files. These data sources will be included in set metrics."""
     exp = oms.MSExperiment()
@@ -79,11 +80,21 @@ def full(filename, mzid=None):
                 Please make sure, we have the right inputs.")
         ms2num = 1
 
+    if idxml and mzid:
+        logging.warn("Sorry, you can only give one id file. Please choose one.")
+        # TODO find a way to do this the click pallet way instead of warn
+        return
+
+    pros = list()
+    peps = list() 
     if mzid:
-        pros = list()
-        peps = list()
         oms_id = oms.MzIdentMLFile()
-        oms_id.load(click.format_filename(mzid), pros, peps)
+        idf = mzid
+    if idxml:
+        oms_id = oms.MzIdentMLFile()
+        idf = idxml
+    if idf:
+        oms_id.load(click.format_filename(idf), pros, peps)
         rq.qualityMetrics.extend(getIDQuality(exp, pros, peps, ms2num))
     rqs.append(rq)
 

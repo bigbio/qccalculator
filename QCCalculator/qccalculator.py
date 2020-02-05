@@ -14,6 +14,16 @@ from statistics import mean, median, stdev
 import numpy as np
 from Bio.SeqUtils import ProtParam
 from Bio import SeqIO, SeqRecord
+import hashlib
+
+def sha256fromfile(filename: str) -> int:
+    sha  = hashlib.sha256()
+    b  = bytearray(128*1024)
+    mv = memoryview(b)
+    with open(filename, 'rb', buffering=0) as f:
+        for n in iter(lambda : f.readinto(mv), 0):
+            sha.update(mv[:n])
+    return sha.hexdigest()
 
 def getMassDifference(theo_mz: float, exp_mz: float, use_ppm: bool=True)-> float:
     error: float = (exp_mz - theo_mz)
@@ -68,16 +78,22 @@ def getTrapTime(spec: oms.MSSpectrum, acqusition_unavailable= True) -> float:
 
 def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuality:
     metrics: List[mzqc.QualityMetric] = list()
-    base_name: str = exp.getExperimentalSettings().getSourceFiles()[0].getNameOfFile().decode() if \
-        exp.getExperimentalSettings().getSourceFiles() else \
-        basename(exp.getExperimentalSettings().getLoadedFilePath().decode())
-    chksm: str = exp.getExperimentalSettings().getSourceFiles()[0].getChecksum().decode()
+    if exp.getExperimentalSettings().getSourceFiles():
+        parent_base_name: str = basename(exp.getExperimentalSettings().getSourceFiles()[0].getNameOfFile().decode())
+        parent_chksm: str = exp.getExperimentalSettings().getSourceFiles()[0].getChecksum().decode()
+        parent_chksm_type: str = exp.getExperimentalSettings().getSourceFiles()[0].getChecksumType()
+    
+    input_loc: str = exp.getExperimentalSettings().getLoadedFilePath().decode()
+    base_name: str = basename(input_loc)
+    chksm: str = sha256fromfile(exp.getExperimentalSettings().getLoadedFilePath().decode())
     cmpltn: str = exp.getDateTime().get().decode()
     # strt:datetime.datetime = datetime.datetime.strptime(cmpltn, '%Y-%m-%d %H:%M:%S') - datetime.timedelta(seconds=exp.getChromatograms()[0][exp.getChromatograms()[0].size()-1].getRT()*60)
+    
+    input_loc: str = exp.getLoadedFilePath().decode()
 
     meta: mzqc.MetaDataParameters = mzqc.MetaDataParameters(
         inputFiles=[
-            mzqc.InputFile(name=base_name,location="file:///dev/null", 
+            mzqc.InputFile(name=base_name,location=input_loc, 
                         fileFormat=mzqc.CvParameter("MS", "MS:1000584", "mzML format"), 
                         fileProperties=[
                             mzqc.CvParameter(cvRef="MS", 
@@ -87,7 +103,7 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuali
                             ),
                             mzqc.CvParameter(cvRef="MS", 
                                 accession="MS:1000569", 
-                                name="SHA-1", 
+                                name="SHA-256", 
                                 value=chksm
                             ),
                             mzqc.CvParameter(cvRef="MS", 
@@ -95,6 +111,10 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuali
                                 name="instrument model", 
                                 value=exp.getInstrument().getName().decode()
                             )
+                            # TODO integrate parent location and checksum
+                            # id: MS:1002846
+                            # name: Associated raw file URI
+                            # fitting checksum cv missing
                         ]
             )
         ], 
