@@ -16,7 +16,7 @@ from Bio.SeqUtils import ProtParam
 from Bio import SeqIO, SeqRecord
 import hashlib
 
-def sha256fromfile(filename: str) -> int:
+def sha256fromfile(filename: str) -> str:
     sha  = hashlib.sha256()
     b  = bytearray(128*1024)
     mv = memoryview(b)
@@ -88,8 +88,6 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuali
     chksm: str = sha256fromfile(exp.getExperimentalSettings().getLoadedFilePath().decode())
     cmpltn: str = exp.getDateTime().get().decode()
     # strt:datetime.datetime = datetime.datetime.strptime(cmpltn, '%Y-%m-%d %H:%M:%S') - datetime.timedelta(seconds=exp.getChromatograms()[0][exp.getChromatograms()[0].size()-1].getRT()*60)
-    
-    input_loc: str = exp.getLoadedFilePath().decode()
 
     meta: mzqc.MetaDataParameters = mzqc.MetaDataParameters(
         inputFiles=[
