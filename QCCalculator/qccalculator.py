@@ -15,6 +15,7 @@ import numpy as np
 from Bio.SeqUtils import ProtParam
 from Bio import SeqIO, SeqRecord
 import hashlib
+import urllib
 
 def sha256fromfile(filename: str) -> str:
     sha  = hashlib.sha256()
@@ -364,8 +365,12 @@ def getIDQuality(exp: oms.MSExperiment, pro_ids: List[oms.ProteinIdentification]
     PROTON_MASS_U = 1.00727646677  # Constants::PROTON_MASS_U unavailable
 
     score_type = pep_ids[0].getScoreType().decode()
+
     # TODO find a good home for the psi-ms obo in repo
-    psims = pronto.Ontology('tests/psi-ms.obo')
+    obo_url = "https://raw.githubusercontent.com/HUPO-PSI/psi-ms-CV/master/psi-ms.obo"
+    with urllib.request.urlopen(obo_url, timeout=10) as obo_in:
+        psims = pronto.Ontology(obo_in)
+
     name_indexed = {psims[x].name: psims[x] for x in psims}
     score_indexed = {x.name: x for x in chain(psims['MS:1001143'].subclasses(),psims['MS:1001153'].subclasses(),psims['MS:1002347'].subclasses(),psims['MS:1002363'].subclasses())}
 
