@@ -60,14 +60,24 @@ def start(output, zip):
 
 @start.command()
 @click.argument('filename', type=click.Path(exists=True))
-@click.option('--mzid', required=True, type=click.Path(exists=True), help="If you have a corresponding mzid file you need to pass it, too. Mutually exclusive to idxml.")
-@click.option('--idxml', required=True, type=click.Path(exists=True), help="If you have a corresponding idxml file you need to pass it, too. Mutually exclusive to mzid.")
-def full(filename, mzid=None): 
+@click.option('--mzid', type=click.Path(exists=True), help="If you have a corresponding mzid file you need to pass it, too. Mutually exclusive to idxml.")
+@click.option('--idxml', type=click.Path(exists=True), help="If you have a corresponding idxml file you need to pass it, too. Mutually exclusive to mzid.")
+def full(filename, mzid=None, idxml=None): 
     """Calculate all possible metrics for these files. These data sources will be included in set metrics."""
     exp = oms.MSExperiment()
     oms.MzMLFile().load(click.format_filename(filename), exp)
     rq = getBasicQuality(exp)  
     
+    if idxml and mzid:
+        with click.Context(command) as ctx:
+            logging.warn("Sorry, you can only give one id file. Please choose one.")
+            click.echo(command.get_help(ctx))
+            return
+    elif not idxml and not mzid:
+            logging.warn("Sorry, you must give one id file in this mode.")
+            click.echo(command.get_help(ctx))
+            return
+
     ms2num = 0
     for x in rq.qualityMetrics:
         if x.name == "Number of MS2 spectra":
@@ -79,11 +89,6 @@ def full(filename, mzid=None):
                 however this means some metrics will invariably be incorrect!\
                 Please make sure, we have the right inputs.")
         ms2num = 1
-
-    if idxml and mzid:
-        logging.warn("Sorry, you can only give one id file. Please choose one.")
-        # TODO find a way to do this the click pallet way instead of warn
-        return
 
     pros = list()
     peps = list() 
