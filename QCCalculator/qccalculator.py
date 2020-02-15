@@ -40,28 +40,30 @@ def getSN_medianmethod(spec: oms.MSSpectrum, norm: bool=True) -> float:
     maxi: float = 0.0
     spec.sortByIntensity(False)
     
-    if (spec.size() % 2 == 0):
-        median = (spec[spec.size() // 2].getIntensity() + spec[(spec.size() // 2) +1].getIntensity()) / 2
-    else:
-        median = spec[spec.size() // 2].getIntensity()
-    
-    maxi = spec[spec.size()-1].getIntensity()
-    if (not norm):
-        return maxi / median
+    mar = np.array([s.getIntensity() for s in spec])
+    median = np.median(mar)
 
-    sign_int: float = 0.0
-    nois_int: float = 0.0
-    sign_cnt: int = 0
-    nois_cnt: int  = 0
-    for pt in spec:
-        if (pt.getIntensity() <= median):
-            nois_cnt +=1
-            nois_int += pt.getIntensity()
-        else:
-            sign_cnt +=1 
-            sign_int += pt.getIntensity()
-      
-    return (sign_int / sign_cnt) / (nois_int / nois_cnt)
+    if (not norm):
+        return np.max(mar) / median
+
+    sig = np.sum(mar[mar<=median])/mar[mar<=median].size
+    noi = np.sum(mar[mar>median])/mar[mar>median].size
+    # def sz():
+    #     test = np.random.rand(30)
+    #     median = np.median(test)
+    #     sig = np.sum(test[test<=median])/test[test<=median].size
+
+    # def ln():
+    #     test = np.random.rand(30)
+    #     median = np.median(test)
+    #     sig = np.sum(test[test<=median])/len(test[test<=median])
+
+    # from timeit import timeit
+    # import numpy as np
+    # timeit(sz, number=100000)
+    # timeit(ln, number=100000)
+          
+    return sig/noi
 
 def getTrapTime(spec: oms.MSSpectrum, acqusition_unavailable= True) -> float:
     tt = -1.0
