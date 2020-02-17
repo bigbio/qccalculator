@@ -14,6 +14,17 @@ from statistics import mean, median, stdev
 import numpy as np
 from Bio.SeqUtils import ProtParam
 from Bio import SeqIO, SeqRecord
+import hashlib
+import urllib
+
+def sha256fromfile(filename: str) -> str:
+    sha  = hashlib.sha256()
+    b  = bytearray(128*1024)
+    mv = memoryview(b)
+    with open(filename, 'rb', buffering=0) as f:
+        for n in iter(lambda : f.readinto(mv), 0):
+            sha.update(mv[:n])
+    return sha.hexdigest()
 
 def getMassDifference(theo_mz: float, exp_mz: float, use_ppm: bool=True)-> float:
     error: float = (exp_mz - theo_mz)
@@ -29,28 +40,30 @@ def getSN_medianmethod(spec: oms.MSSpectrum, norm: bool=True) -> float:
     maxi: float = 0.0
     spec.sortByIntensity(False)
     
-    if (spec.size() % 2 == 0):
-        median = (spec[spec.size() // 2].getIntensity() + spec[(spec.size() // 2) +1].getIntensity()) / 2
-    else:
-        median = spec[spec.size() // 2].getIntensity()
-    
-    maxi = spec[spec.size()-1].getIntensity()
-    if (not norm):
-        return maxi / median
+    mar = np.array([s.getIntensity() for s in spec])
+    median = np.median(mar)
 
-    sign_int: float = 0.0
-    nois_int: float = 0.0
-    sign_cnt: int = 0
-    nois_cnt: int  = 0
-    for pt in spec:
-        if (pt.getIntensity() <= median):
-            nois_cnt +=1
-            nois_int += pt.getIntensity()
-        else:
-            sign_cnt +=1 
-            sign_int += pt.getIntensity()
-      
-    return (sign_int / sign_cnt) / (nois_int / nois_cnt)
+    if (not norm):
+        return np.max(mar) / median
+
+    sig = np.sum(mar[mar<=median])/mar[mar<=median].size
+    noi = np.sum(mar[mar>median])/mar[mar>median].size
+    # def sz():
+    #     test = np.random.rand(30)
+    #     median = np.median(test)
+    #     sig = np.sum(test[test<=median])/test[test<=median].size
+
+    # def ln():
+    #     test = np.random.rand(30)
+    #     median = np.median(test)
+    #     sig = np.sum(test[test<=median])/len(test[test<=median])
+
+    # from timeit import timeit
+    # import numpy as np
+    # timeit(sz, number=100000)
+    # timeit(ln, number=100000)
+          
+    return sig/noi
 
 def getTrapTime(spec: oms.MSSpectrum, acqusition_unavailable= True) -> float:
     tt = -1.0
@@ -68,16 +81,20 @@ def getTrapTime(spec: oms.MSSpectrum, acqusition_unavailable= True) -> float:
 
 def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuality:
     metrics: List[mzqc.QualityMetric] = list()
-    base_name: str = exp.getExperimentalSettings().getSourceFiles()[0].getNameOfFile().decode() if \
-        exp.getExperimentalSettings().getSourceFiles() else \
-        basename(exp.getExperimentalSettings().getLoadedFilePath().decode())
-    chksm: str = exp.getExperimentalSettings().getSourceFiles()[0].getChecksum().decode()
+    if exp.getExperimentalSettings().getSourceFiles():
+        parent_base_name: str = basename(exp.getExperimentalSettings().getSourceFiles()[0].getNameOfFile().decode())
+        parent_chksm: str = exp.getExperimentalSettings().getSourceFiles()[0].getChecksum().decode()
+        parent_chksm_type: str = exp.getExperimentalSettings().getSourceFiles()[0].getChecksumType()
+    
+    input_loc: str = exp.getExperimentalSettings().getLoadedFilePath().decode()
+    base_name: str = basename(input_loc)
+    chksm: str = sha256fromfile(exp.getExperimentalSettings().getLoadedFilePath().decode())
     cmpltn: str = exp.getDateTime().get().decode()
     # strt:datetime.datetime = datetime.datetime.strptime(cmpltn, '%Y-%m-%d %H:%M:%S') - datetime.timedelta(seconds=exp.getChromatograms()[0][exp.getChromatograms()[0].size()-1].getRT()*60)
 
     meta: mzqc.MetaDataParameters = mzqc.MetaDataParameters(
         inputFiles=[
-            mzqc.InputFile(name=base_name,location="file:///dev/null", 
+            mzqc.InputFile(name=base_name,location=input_loc, 
                         fileFormat=mzqc.CvParameter("MS", "MS:1000584", "mzML format"), 
                         fileProperties=[
                             mzqc.CvParameter(cvRef="MS", 
@@ -87,7 +104,7 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuali
                             ),
                             mzqc.CvParameter(cvRef="MS", 
                                 accession="MS:1000569", 
-                                name="SHA-1", 
+                                name="SHA-256", 
                                 value=chksm
                             ),
                             mzqc.CvParameter(cvRef="MS", 
@@ -95,6 +112,10 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuali
                                 name="instrument model", 
                                 value=exp.getInstrument().getName().decode()
                             )
+                            # TODO integrate parent location and checksum
+                            # id: MS:1002846
+                            # name: Associated raw file URI
+                            # fitting checksum cv missing
                         ]
             )
         ], 
@@ -346,8 +367,12 @@ def getIDQuality(exp: oms.MSExperiment, pro_ids: List[oms.ProteinIdentification]
     PROTON_MASS_U = 1.00727646677  # Constants::PROTON_MASS_U unavailable
 
     score_type = pep_ids[0].getScoreType().decode()
+
     # TODO find a good home for the psi-ms obo in repo
-    psims = pronto.Ontology('tests/psi-ms.obo')
+    obo_url = "https://raw.githubusercontent.com/HUPO-PSI/psi-ms-CV/master/psi-ms.obo"
+    with urllib.request.urlopen(obo_url, timeout=10) as obo_in:
+        psims = pronto.Ontology(obo_in)
+
     name_indexed = {psims[x].name: psims[x] for x in psims}
     score_indexed = {x.name: x for x in chain(psims['MS:1001143'].subclasses(),psims['MS:1001153'].subclasses(),psims['MS:1002347'].subclasses(),psims['MS:1002363'].subclasses())}
 
