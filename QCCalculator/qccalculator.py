@@ -26,6 +26,34 @@ def sha256fromfile(filename: str) -> str:
             sha.update(mv[:n])
     return sha.hexdigest()
 
+def cast_if_int(pot_int):
+    try:
+        return int(pot_int)
+    except ValueError as e:
+        return pot_int
+
+def pep_native_id(p: oms.Peptide) -> int:
+    spre = p.getMetaValue('spectrum_reference')
+    if spre:
+        matches = re.findall("scan=(\d+)$", spre.decode())
+        if len(matches)!=1:  # should really never be >1 with the `$`
+            return None
+        else:
+            return cast_if_int(matches[0])
+    else:
+        return None
+
+def spec_native_id(s: oms.MSSpectrum) -> int:
+    spre = s.getNativeID()
+    if spre:
+        matches = re.findall("scan=(\d+)$", spre.decode())
+        if len(matches)!=1:  # should really never be >1 with the `$`
+            return None
+        else:
+            return cast_if_int(matches[0])
+    else:
+        return None
+
 def getMassDifference(theo_mz: float, exp_mz: float, use_ppm: bool=True)-> float:
     error: float = (exp_mz - theo_mz)
     if use_ppm:
@@ -168,10 +196,13 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuali
             if (spec.getPrecursors()[0].getMZ() > max_mz):
                 max_mz = spec.getPrecursors()[0].getMZ()
 
+            oms.MSSpectrum.getNativeID
+
             spectrum_acquisition_metrics_MS2['RT'].append(spec.getRT())
             spectrum_acquisition_metrics_MS2['SN'].append(getSN_medianmethod(spec))
             spectrum_acquisition_metrics_MS2['peakcount'].append(spec.size())
             spectrum_acquisition_metrics_MS2['int'].append(intens_sum.item())  # .item() for dtype to pytype
+            spectrum_acquisition_metrics_MS2['native_id'].append(spec_native_id(spec))
 
             trap_metrics_MS2['RT'].append(spec.getRT())
             trap_metrics_MS2['iontraptime'].append(iontraptime)
@@ -386,9 +417,10 @@ def getIDQuality(exp: oms.MSExperiment, pro_ids: List[oms.ProteinIdentification]
         warnings.warn("OBO does not contain any entry matching the identification score, proceed at own risk.", Warning)
         score_col_name = score_type
 
-    for pepi in pep_ids:
+    for pepi in pep_ids:            
+        pid = pep_native_id(pepi)
         if pepi.getHits():
-            tmp = pepi.getHits()[0]
+            tmp = pepi.getHits()[0]  # TODO apply custom filters and also consider 'pass_threshold'
             identification_scoring_metrics['RT'].append(pepi.getRT())
             identification_scoring_metrics['c'].append(tmp.getCharge())
             identification_scoring_metrics[score_col_name].append(tmp.getScore())
@@ -407,6 +439,7 @@ def getIDQuality(exp: oms.MSExperiment, pro_ids: List[oms.ProteinIdentification]
             identification_sequence_metrics['RT'].append(pepi.getRT())
             identification_sequence_metrics['peptide'].append(tmp.getSequence().toString().decode().lstrip().rstrip())
             identification_sequence_metrics['target'].append(tmp.getMetaValue('target_decoy').decode().lower() == 'target')
+            identification_sequence_metrics['target'].append(pid)
 
     #   #varmod???         
     #   for (UInt w = 0; w < var_mods.size(); ++w)
