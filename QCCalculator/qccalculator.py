@@ -6,8 +6,9 @@ import warnings
 import pronto
 from os.path import basename
 import pyopenms as oms
+from pyopenms import ActivationMethod
 from mzqc import MZQCFile as mzqc
-from typing import List, Dict, Set, Any, Optional, Callable
+from typing import List, Dict, Set, Any, Optional, Callable, Union
 from collections import defaultdict
 from itertools import chain
 from statistics import mean, median, stdev
@@ -32,7 +33,7 @@ def cast_if_int(pot_int):
     except ValueError as e:
         return pot_int
 
-def pep_native_id(p: oms.Peptide) -> int:
+def pep_native_id(p: oms.Peptide) -> Union[int,None]:
     spre = p.getMetaValue('spectrum_reference')
     if spre:
         matches = re.findall("scan=(\d+)$", spre.decode())
@@ -43,7 +44,7 @@ def pep_native_id(p: oms.Peptide) -> int:
     else:
         return None
 
-def spec_native_id(s: oms.MSSpectrum) -> int:
+def spec_native_id(s: oms.MSSpectrum) -> Union[int,None]:
     spre = s.getNativeID()
     if spre:
         matches = re.findall("scan=(\d+)$", spre.decode())
@@ -107,6 +108,27 @@ def getTrapTime(spec: oms.MSSpectrum, acqusition_unavailable= True) -> float:
                     break
     return tt
 
+from enum import Enum, unique
+
+@unique
+class MyActivationMethod(Enum):
+    CID=0
+    PSD=1
+    PD=2
+    SID=3
+    BIRD=4
+    ECD=5
+    IMD=6
+    SORI=7
+    HCID=8
+    LCID=9
+    PHD=10
+    ETD=11
+    PQD=12
+    # print(ActivationMethod(2).name)
+    # easier loop-up, no hard-coded connection with:
+    # from pyopenms import ActivationMethod; {getattr(ActivationMethod,i): i for i in dir(ActivationMethod) if type(getattr(ActivationMethod,i))==int };
+
 def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuality:
     metrics: List[mzqc.QualityMetric] = list()
     if exp.getExperimentalSettings().getSourceFiles():
@@ -167,6 +189,9 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuali
     trap_metrics_MS1: Dict[str,List[Any]] = defaultdict(list)
     trap_metrics_MS2: Dict[str,List[Any]] = defaultdict(list)
 
+    #ActivationMethod look-up dict
+    ams = {getattr(ActivationMethod,i): i for i in dir(ActivationMethod) if type(getattr(ActivationMethod,i))==int }
+
     intens_sum: int = 0
     last_surveyscan_index:int = 0
     for spin, spec in enumerate(exp):
@@ -196,8 +221,6 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuali
             if (spec.getPrecursors()[0].getMZ() > max_mz):
                 max_mz = spec.getPrecursors()[0].getMZ()
 
-            oms.MSSpectrum.getNativeID
-
             spectrum_acquisition_metrics_MS2['RT'].append(spec.getRT())
             spectrum_acquisition_metrics_MS2['SN'].append(getSN_medianmethod(spec))
             spectrum_acquisition_metrics_MS2['peakcount'].append(spec.size())
@@ -206,6 +229,8 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuali
 
             trap_metrics_MS2['RT'].append(spec.getRT())
             trap_metrics_MS2['iontraptime'].append(iontraptime)
+            trap_metrics_MS2['activation_method'].append(ams.get(list(spec.getPrecursors()[0].getActivationMethods())[0],'unknown'))
+            trap_metrics_MS2['activation_energy'].append(spec.getPrecursors()[0].getMetaValue('collision energy'))
 
             rank = spin - last_surveyscan_index
             spectrum_topn['RT'].append(spec.getRT())
