@@ -15,7 +15,7 @@ import numpy as np
 from Bio.SeqUtils import ProtParam
 from Bio import SeqIO, SeqRecord
 import hashlib
-import urllib
+import urllib.request
 
 def sha256fromfile(filename: str) -> str:
     sha  = hashlib.sha256()
@@ -1062,3 +1062,156 @@ def getSNMetrics(spectrum_acquisition_metrics_MS:mzqc.QualityMetric, ms_level: i
       
     return metrics
   
+import io
+import pandas
+import zipfile
+import requests
+
+def get_mq_zipped_evidence(url: str):
+    response = requests.get(url)
+    with zipfile.ZipFile(io.BytesIO(response.content)) as z:
+        with z.open('evidence.txt') as e:
+            return pandas.read_csv(e,sep='\t')
+
+def getMQMetrics(exp: oms.MSExperiment, mq_zip_url: str, ms2num: int = 0) -> List[mzqc.QualityMetric]:
+    mq,params = get_mq_zipped_evidence(mq_zip_url)
+    
+    target_raw: str =  basename(exp.getExperimentalSettings().getSourceFiles()[0].getNameOfFile().decode())
+    if not target_raw in mq['Raw file'].unique():
+        return list()  # TODO warn
+    else:
+        mq_metrics : List[mzqc.QualityMetric] = list()
+        #https://stackoverflow.com/questions/17071871/how-to-select-rows-from-a-dataframe-based-on-column-values
+        target_mq = mq.loc[(mq['Raw file'] == target_raw) & (mq['MS/MS scan number'].notnull())]
+
+        
+        params.loc[params['Parameter']=="PSM FDR"]['Value'].tolist()[0]
+        mq_metrics.append(
+            mzqc.QualityMetric(cvRef="QC", 
+                    accession="QC:0000000", 
+                    name="Sequence database name", 
+                    value=params.loc[params['Parameter']=="Fasta file"]['Value'].tolist()[0])
+        )
+
+        # # name="Sequence database version",  #summary.txt?
+        # mq_metrics.append(
+        #     mzqc.QualityMetric(cvRef="QC", 
+        #             accession="QC:0000000", 
+        #             name="Sequence database version", 
+        #             value=pro_ids[0].getSearchParameters().db_version.decode())
+        # )
+        # # name="Sequence database taxonomy",  #summary.txt?
+        # mq_metrics.append(
+        #     mzqc.QualityMetric(cvRef="QC", 
+        #             accession="QC:0000000", 
+        #             name="Sequence database taxonomy", 
+        #             value=pro_ids[0].getSearchParameters().taxonomy.decode())
+        # )
+
+        # #     name="Total number of protein evidences",   #
+        # protein_evidence_count = target_mq['Proteins'].str.split(';', expand=False).str.len().sum()
+        # mq_metrics.append(
+        #     mzqc.QualityMetric(cvRef="QC", 
+        #             accession="QC:0000000", 
+        #             name="Total number of protein evidences", 
+        #             value=protein_evidence_count)
+        # )
+        # params.loc[params['Parameter']=="Fasta file"]['Value'].tolist()[0]
+        
+        proteins = len(target_mq['Leading proteins'].unique()) 
+        mq_metrics.append(
+            mzqc.QualityMetric(cvRef="QC", 
+                    accession="QC:0000000", 
+                    name="Total number of identified proteins", 
+                    value=proteins)
+        )
+
+        # #     name="Total number of PSM",   # NA
+        # metrics.append(
+        #     mzqc.QualityMetric(cvRef="QC", 
+        #             accession="QC:0000000", 
+        #             name="Total number of PSM", 
+        #             value=psm_count)
+        # )
+
+        #     name="Total number of peptide spectra",  #len(target_mq['Sequence'])
+        mq_metrics.append(
+            mzqc.QualityMetric(cvRef="QC", 
+                    accession="QC:0000000", 
+                    name="Total number of peptide spectra", 
+                    value=spectrum_count)
+        )
+
+        peptides = len(target_mq['Sequence'].unique())
+        mq_metrics.append(
+            mzqc.QualityMetric(cvRef="QC", 
+                    accession="QC:0000000", 
+                    name="Total number identified unique peptide sequences", 
+                    value=peptides)
+        )
+
+        score_type = "Andromeda:score"
+        # TODO find a good home for the psi-ms obo in repo
+        obo_url = "https://raw.githubusercontent.com/HUPO-PSI/psi-ms-CV/master/psi-ms.obo"
+        with urllib.request.urlopen(obo_url, timeout=10) as obo_in:
+            psims = pronto.Ontology(obo_in)
+
+        name_indexed = {psims[x].name: psims[x] for x in psims}
+        score_indexed = {x.name: x for x in chain(psims['MS:1001143'].subclasses(),psims['MS:1001153'].subclasses(),psims['MS:1002347'].subclasses(),psims['MS:1002363'].subclasses())}
+
+        if score_type in name_indexed:
+            if not score_type in score_indexed:
+                warnings.warn("Score type does not correspond to a score type in the OBO, proceed at own risk.", Warning)
+                score_col_name = name_indexed[score_type].id
+            else:
+                score_col_name = score_indexed[score_type].id
+        else:
+            warnings.warn("OBO does not contain any entry matching the identification score, proceed at own risk.", Warning)
+            score_col_name = score_type
+
+        ## Basic id metrics
+            # identification_scoring_metrics['RT'].append(pepi.getRT())
+            # identification_scoring_metrics['c'].append(tmp.getCharge())
+            # identification_scoring_metrics[score_col_name].append(tmp.getScore())
+        mq_metrics.append(
+            mzqc.QualityMetric(cvRef="QC", 
+                    accession="QC:0000000", 
+                    name="Identification scoring metric values", 
+                    value=identification_scoring_metrics)
+        )
+            # identification_accuracy_metrics['MZ'].append(pepi.getMZ())
+            # identification_accuracy_metrics['delta_ppm'].append(dppm)
+            # identification_accuracy_metrics['abs_error'].append(err)
+        mq_metrics.append(
+            mzqc.QualityMetric(cvRef="QC", 
+                    accession="QC:0000000", 
+                    name="Identifications accuracy metric values", 
+                    value=identification_accuracy_metrics)
+        )
+            # hydrophobicity_metrics['gravy'].append(ProtParam.ProteinAnalysis(tmp.getSequence().toUnmodifiedString().decode()).gravy())
+        mq_metrics.append(
+            mzqc.QualityMetric(cvRef="QC", 
+                    accession="QC:0000000", 
+                    name="Hydrophobicity metric values", 
+                    value=hydrophobicity_metrics)
+        )
+            # identification_sequence_metrics['peptide'].append(tmp.getSequence().toString().decode().lstrip().rstrip())
+            # identification_sequence_metrics['target'].append(tmp.getMetaValue('target_decoy').decode().lower() == 'target')
+            # identification_sequence_metrics['native_id'].append(pid)
+        mq_metrics.append(
+            mzqc.QualityMetric(cvRef="QC", 
+                    accession="QC:0000000", 
+                    name="Identifications sequence metric values", 
+                    value=identification_sequence_metrics)
+        )
+
+        ## simple id metrics 
+        mq_metrics.append(
+            mzqc.QualityMetric(cvRef="QC", 
+                    accession="QC:0000000", 
+                    name="Identification to tandem spectra ratio", 
+                    value=float(len(target_mq))/float(ms2num))
+        )
+
+        return mq_metrics
+
