@@ -1,21 +1,27 @@
+import datetime
+import hashlib
+import io
+import itertools
 import re
 import sys
-import datetime 
-import itertools
+import urllib
+import urllib.request
 import warnings
-import pronto
-from os.path import basename
-import pyopenms as oms
-from mzqc import MZQCFile as mzqc
-from typing import List, Dict, Set, Any, Optional, Callable
+import zipfile
 from collections import defaultdict
 from itertools import chain
+from os.path import basename
 from statistics import mean, median, stdev
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
+
 import numpy as np
-from Bio.SeqUtils import ProtParam
+import pandas
+import pronto
+import pyopenms as oms
 from Bio import SeqIO, SeqRecord
-import hashlib
-import urllib.request
+from Bio.SeqUtils import ProtParam
+from mzqc import MZQCFile as mzqc
+
 
 def sha256fromfile(filename: str) -> str:
     sha  = hashlib.sha256()
@@ -1062,44 +1068,37 @@ def getSNMetrics(spectrum_acquisition_metrics_MS:mzqc.QualityMetric, ms_level: i
       
     return metrics
   
-import io
-import pandas
-import zipfile
-import requests
+# TODO this wont work if the results in the zip are located in a subfolder like SEARCH/evidence.txt
+def get_mq_zipped_evidence(url: str) -> Tuple[pandas.DataFrame,pandas.DataFrame]:
+    with urllib.request.urlopen(url, timeout=10) as dl:
+        with zipfile.ZipFile(io.BytesIO(dl.read())) as z:
+            with z.open('evidence.txt') as e:
+                ev = pandas.read_csv(e,sep='\t')
+                ev.columns = map(str.lower, ev.columns)
+            with z.open('parameters.txt') as p:
+                pa = pandas.read_csv(p,sep='\t', dtype={'Parameter':str})
+                pa.columns = map(str.lower, pa.columns)
+                pa['parameter'] = pa['parameter'].str.lower()
+                pa.set_index('parameter', inplace=True)
+        return pa,ev
 
-def get_mq_zipped_evidence(url: str):
-    response = requests.get(url)
-    with zipfile.ZipFile(io.BytesIO(response.content)) as z:
-        with z.open('evidence.txt') as e:
-            return pandas.read_csv(e,sep='\t')
-
-def getMQMetrics(exp: oms.MSExperiment, mq_zip_url: str, ms2num: int = 0) -> List[mzqc.QualityMetric]:
-    mq,params = get_mq_zipped_evidence(mq_zip_url)
-    
-    target_raw: str =  basename(exp.getExperimentalSettings().getSourceFiles()[0].getNameOfFile().decode())
-    if not target_raw in mq['Raw file'].unique():
+def getMQMetrics(target_raw: str, params: pandas.DataFrame, evidence: pandas.DataFrame, ms2num: int = 0) -> List[mzqc.QualityMetric]: 
+    if not target_raw in evidence['raw file'].unique():
         return list()  # TODO warn
     else:
         mq_metrics : List[mzqc.QualityMetric] = list()
         #https://stackoverflow.com/questions/17071871/how-to-select-rows-from-a-dataframe-based-on-column-values
-        target_mq = mq.loc[(mq['Raw file'] == target_raw) & (mq['MS/MS scan number'].notnull())]
+        target_mq = evidence.loc[(evidence['raw file'] == target_raw) & (evidence['ms/ms scan number'].notnull())]
 
-        
-        params.loc[params['Parameter']=="PSM FDR"]['Value'].tolist()[0]
+        # params.loc[params['Parameter']=="PSM FDR"]['Value'].tolist()[0]
+        # params.loc['PSM FDR']['Value']
         mq_metrics.append(
             mzqc.QualityMetric(cvRef="QC", 
                     accession="QC:0000000", 
                     name="Sequence database name", 
-                    value=params.loc[params['Parameter']=="Fasta file"]['Value'].tolist()[0])
+                    value=params.loc['fasta file']['value'])
         )
 
-        # # name="Sequence database version",  #summary.txt?
-        # mq_metrics.append(
-        #     mzqc.QualityMetric(cvRef="QC", 
-        #             accession="QC:0000000", 
-        #             name="Sequence database version", 
-        #             value=pro_ids[0].getSearchParameters().db_version.decode())
-        # )
         # # name="Sequence database taxonomy",  #summary.txt?
         # mq_metrics.append(
         #     mzqc.QualityMetric(cvRef="QC", 
@@ -1116,9 +1115,8 @@ def getMQMetrics(exp: oms.MSExperiment, mq_zip_url: str, ms2num: int = 0) -> Lis
         #             name="Total number of protein evidences", 
         #             value=protein_evidence_count)
         # )
-        # params.loc[params['Parameter']=="Fasta file"]['Value'].tolist()[0]
         
-        proteins = len(target_mq['Leading proteins'].unique()) 
+        proteins = len(target_mq['leading proteins'].unique()) 
         mq_metrics.append(
             mzqc.QualityMetric(cvRef="QC", 
                     accession="QC:0000000", 
@@ -1138,11 +1136,11 @@ def getMQMetrics(exp: oms.MSExperiment, mq_zip_url: str, ms2num: int = 0) -> Lis
         mq_metrics.append(
             mzqc.QualityMetric(cvRef="QC", 
                     accession="QC:0000000", 
-                    name="Total number of peptide spectra", 
-                    value=spectrum_count)
+                    name="Total number of identified peptide spectra", 
+                    value=len(target_mq))
         )
 
-        peptides = len(target_mq['Sequence'].unique())
+        peptides = len(target_mq['sequence'].unique())
         mq_metrics.append(
             mzqc.QualityMetric(cvRef="QC", 
                     accession="QC:0000000", 
@@ -1169,6 +1167,8 @@ def getMQMetrics(exp: oms.MSExperiment, mq_zip_url: str, ms2num: int = 0) -> Lis
             warnings.warn("OBO does not contain any entry matching the identification score, proceed at own risk.", Warning)
             score_col_name = score_type
 
+
+        identification_scoring_metrics = target_mq[['retention time','charge','score']].rename(columns={'retention time':'RT','charge': 'c','score':score_type}).to_dict(orient='list')
         ## Basic id metrics
             # identification_scoring_metrics['RT'].append(pepi.getRT())
             # identification_scoring_metrics['c'].append(tmp.getCharge())
@@ -1179,6 +1179,13 @@ def getMQMetrics(exp: oms.MSExperiment, mq_zip_url: str, ms2num: int = 0) -> Lis
                     name="Identification scoring metric values", 
                     value=identification_scoring_metrics)
         )
+
+        # TODO comparison column with qccalculator dppm values
+        # TODO RT/native id?
+        identification_accuracy_metrics = target_mq[['ms/ms m/z','mass error [ppm]','uncalibrated mass error [da]']]\
+            .rename(columns={'ms/ms m/z': 'MZ','mass error [ppm]':'delta_ppm','uncalibrated mass error [da]':'abs_error'})
+        identification_accuracy_metrics['abs_error'] = identification_accuracy_metrics['abs_error'].abs()
+        identification_accuracy_metrics = identification_accuracy_metrics.to_dict(orient='list')    
             # identification_accuracy_metrics['MZ'].append(pepi.getMZ())
             # identification_accuracy_metrics['delta_ppm'].append(dppm)
             # identification_accuracy_metrics['abs_error'].append(err)
@@ -1188,6 +1195,11 @@ def getMQMetrics(exp: oms.MSExperiment, mq_zip_url: str, ms2num: int = 0) -> Lis
                     name="Identifications accuracy metric values", 
                     value=identification_accuracy_metrics)
         )
+
+        hydrophobicity_metrics = target_mq[['retention time','sequence']].rename(columns={'retention time':'RT','sequence':'peptide'})
+        hydrophobicity_metrics['gravy'] = hydrophobicity_metrics['peptide'].apply(lambda x: ProtParam.ProteinAnalysis(x).gravy())
+        hydrophobicity_metrics = hydrophobicity_metrics[['RT','gravy']].to_dict(orient='list')
+            # hydrophobicity_metrics['RT'].append(pepi.getRT())
             # hydrophobicity_metrics['gravy'].append(ProtParam.ProteinAnalysis(tmp.getSequence().toUnmodifiedString().decode()).gravy())
         mq_metrics.append(
             mzqc.QualityMetric(cvRef="QC", 
@@ -1195,6 +1207,9 @@ def getMQMetrics(exp: oms.MSExperiment, mq_zip_url: str, ms2num: int = 0) -> Lis
                     name="Hydrophobicity metric values", 
                     value=hydrophobicity_metrics)
         )
+
+        # TODO target/decoy info available??
+        identification_sequence_metrics = target_mq[['sequence','retention time','ms/ms scan number']].rename(columns={'sequence':'peptide','retention time':'RT','ms/ms scan number':'native_id'}).to_dict(orient='list')
             # identification_sequence_metrics['peptide'].append(tmp.getSequence().toString().decode().lstrip().rstrip())
             # identification_sequence_metrics['target'].append(tmp.getMetaValue('target_decoy').decode().lower() == 'target')
             # identification_sequence_metrics['native_id'].append(pid)
@@ -1214,4 +1229,3 @@ def getMQMetrics(exp: oms.MSExperiment, mq_zip_url: str, ms2num: int = 0) -> Lis
         )
 
         return mq_metrics
-
