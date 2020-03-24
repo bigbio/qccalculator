@@ -1068,19 +1068,51 @@ def getSNMetrics(spectrum_acquisition_metrics_MS:mzqc.QualityMetric, ms_level: i
       
     return metrics
   
-# TODO this wont work if the results in the zip are located in a subfolder like SEARCH/evidence.txt
 def get_mq_zipped_evidence(url: str) -> Tuple[pandas.DataFrame,pandas.DataFrame]:
     with urllib.request.urlopen(url, timeout=10) as dl:
         with zipfile.ZipFile(io.BytesIO(dl.read())) as z:
-            with z.open('evidence.txt') as e:
+            ef = 'evidence.txt'
+            pf = 'parameters.txt'
+            ld = dict()  # {'ev':'evidence.txt', 'pa':'parameters.txt'}
+            dirs = dict()  # {f: {'ev':'evidence.txt', 'pa':'parameters.txt'} }
+            for f in z.namelist():
+                if(z.getinfo(f).is_dir()):
+                    dirs[f] = dict()
+                elif f == ef:
+                    ld['ev'] = f
+                elif f == pf:
+                    ld['pa'] = f
+
+            if len(ld) < 2:
+                for f in z.namelist():
+                    for d in dirs.keys():
+                        # exact expected match otherwise oddities like 'SEARCH/._parameters.txt' are picked up
+                        if f == d+ef:
+                            dirs[d]['ev'] = f
+                        elif f == d+pf:
+                            dirs[d]['pa'] = f
+
+                dirs = {k:v for k,v in dirs.items() if len(v)>0}
+                if len(dirs) > 1:
+                    warnings.warn("MQ result zip contains more than one results folder.", Warning)
+                elif len(dirs) < 1:
+                    warnings.warn("MQ result zip contains no results, even in subfolders.", Warning)
+                    return None, None
+
+                ld = next(iter(dirs.values()))
+                if len(ld) < 2:
+                    warnings.warn("MQ result zip contains no results.", Warning)
+                    return None, None
+
+            with z.open(ld['ev']) as e:
                 ev = pandas.read_csv(e,sep='\t')
                 ev.columns = map(str.lower, ev.columns)
-            with z.open('parameters.txt') as p:
+            with z.open(ld['pa']) as p:
                 pa = pandas.read_csv(p,sep='\t', dtype={'Parameter':str})
                 pa.columns = map(str.lower, pa.columns)
                 pa['parameter'] = pa['parameter'].str.lower()
                 pa.set_index('parameter', inplace=True)
-        return pa,ev
+            return pa,ev
 
 def getMQMetrics(target_raw: str, params: pandas.DataFrame, evidence: pandas.DataFrame, ms2num: int = 0) -> List[mzqc.QualityMetric]: 
     if not target_raw in evidence['raw file'].unique():
@@ -1090,8 +1122,6 @@ def getMQMetrics(target_raw: str, params: pandas.DataFrame, evidence: pandas.Dat
         #https://stackoverflow.com/questions/17071871/how-to-select-rows-from-a-dataframe-based-on-column-values
         target_mq = evidence.loc[(evidence['raw file'] == target_raw) & (evidence['ms/ms scan number'].notnull())]
 
-        # params.loc[params['Parameter']=="PSM FDR"]['Value'].tolist()[0]
-        # params.loc['PSM FDR']['Value']
         mq_metrics.append(
             mzqc.QualityMetric(cvRef="QC", 
                     accession="QC:0000000", 
@@ -1099,23 +1129,6 @@ def getMQMetrics(target_raw: str, params: pandas.DataFrame, evidence: pandas.Dat
                     value=params.loc['fasta file']['value'])
         )
 
-        # # name="Sequence database taxonomy",  #summary.txt?
-        # mq_metrics.append(
-        #     mzqc.QualityMetric(cvRef="QC", 
-        #             accession="QC:0000000", 
-        #             name="Sequence database taxonomy", 
-        #             value=pro_ids[0].getSearchParameters().taxonomy.decode())
-        # )
-
-        # #     name="Total number of protein evidences",   #
-        # protein_evidence_count = target_mq['Proteins'].str.split(';', expand=False).str.len().sum()
-        # mq_metrics.append(
-        #     mzqc.QualityMetric(cvRef="QC", 
-        #             accession="QC:0000000", 
-        #             name="Total number of protein evidences", 
-        #             value=protein_evidence_count)
-        # )
-        
         proteins = len(target_mq['leading proteins'].unique()) 
         mq_metrics.append(
             mzqc.QualityMetric(cvRef="QC", 
@@ -1132,7 +1145,6 @@ def getMQMetrics(target_raw: str, params: pandas.DataFrame, evidence: pandas.Dat
         #             value=psm_count)
         # )
 
-        #     name="Total number of peptide spectra",  #len(target_mq['Sequence'])
         mq_metrics.append(
             mzqc.QualityMetric(cvRef="QC", 
                     accession="QC:0000000", 
@@ -1169,10 +1181,6 @@ def getMQMetrics(target_raw: str, params: pandas.DataFrame, evidence: pandas.Dat
 
 
         identification_scoring_metrics = target_mq[['retention time','charge','score']].rename(columns={'retention time':'RT','charge': 'c','score':score_type}).to_dict(orient='list')
-        ## Basic id metrics
-            # identification_scoring_metrics['RT'].append(pepi.getRT())
-            # identification_scoring_metrics['c'].append(tmp.getCharge())
-            # identification_scoring_metrics[score_col_name].append(tmp.getScore())
         mq_metrics.append(
             mzqc.QualityMetric(cvRef="QC", 
                     accession="QC:0000000", 
@@ -1186,9 +1194,6 @@ def getMQMetrics(target_raw: str, params: pandas.DataFrame, evidence: pandas.Dat
             .rename(columns={'ms/ms m/z': 'MZ','mass error [ppm]':'delta_ppm','uncalibrated mass error [da]':'abs_error'})
         identification_accuracy_metrics['abs_error'] = identification_accuracy_metrics['abs_error'].abs()
         identification_accuracy_metrics = identification_accuracy_metrics.to_dict(orient='list')    
-            # identification_accuracy_metrics['MZ'].append(pepi.getMZ())
-            # identification_accuracy_metrics['delta_ppm'].append(dppm)
-            # identification_accuracy_metrics['abs_error'].append(err)
         mq_metrics.append(
             mzqc.QualityMetric(cvRef="QC", 
                     accession="QC:0000000", 
@@ -1199,8 +1204,6 @@ def getMQMetrics(target_raw: str, params: pandas.DataFrame, evidence: pandas.Dat
         hydrophobicity_metrics = target_mq[['retention time','sequence']].rename(columns={'retention time':'RT','sequence':'peptide'})
         hydrophobicity_metrics['gravy'] = hydrophobicity_metrics['peptide'].apply(lambda x: ProtParam.ProteinAnalysis(x).gravy())
         hydrophobicity_metrics = hydrophobicity_metrics[['RT','gravy']].to_dict(orient='list')
-            # hydrophobicity_metrics['RT'].append(pepi.getRT())
-            # hydrophobicity_metrics['gravy'].append(ProtParam.ProteinAnalysis(tmp.getSequence().toUnmodifiedString().decode()).gravy())
         mq_metrics.append(
             mzqc.QualityMetric(cvRef="QC", 
                     accession="QC:0000000", 
@@ -1210,9 +1213,6 @@ def getMQMetrics(target_raw: str, params: pandas.DataFrame, evidence: pandas.Dat
 
         # TODO target/decoy info available??
         identification_sequence_metrics = target_mq[['sequence','retention time','ms/ms scan number']].rename(columns={'sequence':'peptide','retention time':'RT','ms/ms scan number':'native_id'}).to_dict(orient='list')
-            # identification_sequence_metrics['peptide'].append(tmp.getSequence().toString().decode().lstrip().rstrip())
-            # identification_sequence_metrics['target'].append(tmp.getMetaValue('target_decoy').decode().lower() == 'target')
-            # identification_sequence_metrics['native_id'].append(pid)
         mq_metrics.append(
             mzqc.QualityMetric(cvRef="QC", 
                     accession="QC:0000000", 
