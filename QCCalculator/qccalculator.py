@@ -1,5 +1,4 @@
 import datetime
-import hashlib
 import io
 import itertools
 import re
@@ -14,9 +13,12 @@ from os.path import basename
 from statistics import mean, median, stdev
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
+from QCCalculator import utils
+
 import numpy as np
 import pandas
 import pronto
+from toposort import toposort
 import pyopenms as oms
 from pyopenms import ActivationMethod
 from Bio import SeqIO, SeqRecord
@@ -24,40 +26,25 @@ from Bio.SeqUtils import ProtParam
 from mzqc import MZQCFile as mzqc
 
 
-def sha256fromfile(filename: str) -> str:
-    sha  = hashlib.sha256()
-    b  = bytearray(128*1024)
-    mv = memoryview(b)
-    with open(filename, 'rb', buffering=0) as f:
-        for n in iter(lambda : f.readinto(mv), 0):
-            sha.update(mv[:n])
-    return sha.hexdigest()
-
-def cast_if_int(pot_int):
-    try:
-        return int(pot_int)
-    except ValueError as e:
-        return pot_int
-
 def pep_native_id(p: oms.Peptide) -> Union[int,None]:
     spre = p.getMetaValue('spectrum_reference')
     if spre:
-        matches = re.findall("scan=(\d+)$", spre.decode())
+        matches = re.findall("scan=(\d+)$", spre)
         if len(matches)!=1:  # should really never be >1 with the `$`
             return None
         else:
-            return cast_if_int(matches[0])
+            return utils.cast_if_int(matches[0])
     else:
         return None
 
 def spec_native_id(s: oms.MSSpectrum) -> Union[int,None]:
     spre = s.getNativeID()
     if spre:
-        matches = re.findall("scan=(\d+)$", spre.decode())
+        matches = re.findall("scan=(\d+)$", spre)
         if len(matches)!=1:  # should really never be >1 with the `$`
             return None
         else:
-            return cast_if_int(matches[0])
+            return utils.cast_if_int(matches[0])
     else:
         return None
 
@@ -100,33 +87,142 @@ def getSN_medianmethod(spec: oms.MSSpectrum, norm: bool=True) -> float:
           
     return sig/noi
 
-def getTrapTime(spec: oms.MSSpectrum, acqusition_unavailable= True) -> float:
+def getTrapTime(spec: oms.MSSpectrum, acqusition_unavailable=False) -> float:
+    # TODO document when to use the acqusition_unavailable flag, i.e. pyopenms < 2.5.0
     tt = -1.0
     if acqusition_unavailable:
         if spec.metaValueExists('MS:1000927'):
             tt = spec.getMetaValue('MS:1000927')        
     else:
         # TODO incomplete AcqusitionInfo.pxd
-        if not spec.getAcquisitionInfo().empty():
+        if not spec.getAcquisitionInfo():
             for j in spec.getAcquisitionInfo():
                 if j.metaValueExists("MS:1000927"):
                     tt = j.getMetaValue("MS:1000927")
                     break
     return tt
 
-from enum import Enum, unique
+def getLongestTag(spec: oms.MSSpectrum, aa_weights: List[float], tol: float=0.5) -> int:
+    # TODO spec.getPrecursors()[0].getCharge() > 2 consider aa_weights for doubly charged or always?
+    # what about internal fragments and modifications
+    # aa_weights_z1 = np.array(list({r.getMonoWeight(1) for r in oms.ResidueDB().getResidues('AllNatural')}),dtype=float)
+    # aa_weights_z2 = np.array(list({r.getMonoWeight(2) for r in oms.ResidueDB().getResidues('AllNatural')}),dtype=float)/2
+    if spec.getMSLevel() == 1:
+        return -1
+    if not spec.isSorted():
+        spec.sortByPosition()
+
+    edges: List[Tuple[int,int]] = list() 
+    node_dependencies: Dict[int,Set[Any]] = defaultdict(set)
+    path_score: Dict[int,int] = defaultdict(lambda: np.NINF)
+    for i in range(0,spec.size()-1):
+        for j in range(i,spec.size()):
+            dist = spec[j].getMZ()-spec[i].getMZ()
+            if np.any(np.isclose(dist,aa_weights, atol=tol)):
+                edges.append((i,j))
+                node_dependencies[j].add(i)
+    topological = list(toposort(node_dependencies))
+    if len(topological)<=1:
+        return 0
+    for obound in topological[0]:
+        path_score[obound] = 0
+    # topological = list(toposort({2: {11},
+    #         9: {11, 8, 10},
+    #         10: {11, 3},
+    #         11: {7, 5},
+    #         8: {7, 3},
+    # }))
+    # edges = [(3,8),(3,10),(5,11),(7,8),(7,11),(8,9),(11,2),(11,9),(11,10),(10,9)]
+    edge_array = np.array(edges, ndmin = 2)
+    edge_sort_order = list(chain.from_iterable(topological))
+    for u in edge_sort_order:
+        for edge in edge_array[edge_array[:,0] == u]:
+            if path_score[edge[1]] < path_score[edge[0]] + 1:  # edgecost always 1
+                path_score[edge[1]] = path_score[edge[0]] + 1
+
+    return max(path_score.values())
+
+def getMassTraceMatchingMS2(exp: oms.MSExperiment, tol: float=0.5) -> List[mzqc.QualityMetric]:
+    mts: List[oms.MassTrace] = list()
+    oms.MassTraceDetection().run(exp,mts,0)  # since 2.5.0 with 3rd argument
+    mts_coord = np.array([[m.getCentroidMZ(),m.getCentroidRT()] for m in mts])
+    # ms2_coord = np.array([[s.getPrecursors()[0].getMZ(), s.getRT()] for s in exp if s.getMSLevel()==2])
+    
+    for s in exp:
+        if s.getMSLevel()==2:
+            mz_matches = np.isclose(mts_coord[:,0], s.getPrecursors()[0].getMZ(), atol=tol)
+            rt_dist_per_match = np.abs(mts_coord[np.where(mz_matches)][:,1] - s.getRT())
+            match_idx_in_dist = np.argwhere(mz_matches)  # indices of match only in mts and mts_coord 
+            closest_rt_rowidx = rt_dist_per_match.argmin()  # index in match_only distances array
+            # rt_dist_per_match[closest_rt_rowidx] == mts_coord[match_idx[closest_rt_rowidx][0]][1]-s.getRT()
+            closest_match_mt = mts[match_idx_in_dist[closest_rt_rowidx][0]]
+
+            np.partition(rt_dist_per_match,2)[2-1]  # 2nd closest dist
+            np.partition(rt_dist_per_match,1)[1-1]  # closest dist
+            closest_match_mt.getSize()  # peaks
+            closest_match_mt.getTraceLength()  # seconds
+            closest_match_mt.getFWHM()  # seconds - what if 0 or getTraceLength()?
+            closest_match_mt.getMaxIntensity(False)
+
+            # NB precursor intensity is always 0! 
+            # NB masstrace does not store peak intensities (except max and sum)
+            # 4 categories for MS2 regarding sampling 
+            # -2 (out of trace, before centr RT) ; -1 (in trace, before centr RT) ;1 (in trace, after centr RT) ;2 (out of trace, after centr RT) ;
+            rt_1st = np.min(closest_match_mt.getConvexhull().getHullPoints()[:,0])
+            rt_last = np.max(closest_match_mt.getConvexhull().getHullPoints()[:,0])
+            rt_centr = closest_match_mt.getCentroidRT()
+            # np.digitize(s.getRT(),[rt_1st,rt_centr,rt_last])
+            if s.getRT() > rt_centr:  # 'after' categ
+                if s.getRT() > rt_last:
+                    return 2
+                else:
+                    return 1
+            else:  # 'before' categ
+                if s.getRT() < rt_1st:
+                    return -2
+                else:
+                    return -1
+
+
+    # get mts
+    # for each ms2 find mz matched within tol
+    #     pick closest match in RT np.array([1.1,2.2,3.3,.8,5.5,6.6,.7,8.8]
+    #     report:
+    #         how close is the closest
+    #         on which side is the precursor
+    #         how wobbly is the mt (mz sd)
+    #         how long is the mt (fwhm)
+    #         are there others close? (next closest)	
+
+
+# computePeakArea(
+# computeSmoothedPeakArea(
+# findMaxByIntPeak(
+# estimateFWHM(
+# getFWHM(
+# getSmoothedIntensities(
+# getTraceLength(
+
+    # match_all = np.apply_along_axis(lambda a :np.isclose(mts_coord[:,0],a[0],atol=tol),1,ms2_coord)  # boolean arrays indicating the (mis)matches in mst; shape = [ms2,mts]
+    # where_matches = np.apply_along_axis(lambda a : np.where(a),1,match_all)  # does not work because each ms2 has different amount of matches; shape=[ms2,matching mts (49,60,...)]
+
 
 def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuality:
     metrics: List[mzqc.QualityMetric] = list()
     if exp.getExperimentalSettings().getSourceFiles():
-        parent_base_name: str = basename(exp.getExperimentalSettings().getSourceFiles()[0].getNameOfFile().decode())
-        parent_chksm: str = exp.getExperimentalSettings().getSourceFiles()[0].getChecksum().decode()
+        parent_base_name: str = basename(exp.getExperimentalSettings().getSourceFiles()[0].getNameOfFile())
+        parent_chksm: str = exp.getExperimentalSettings().getSourceFiles()[0].getChecksum()
         parent_chksm_type: str = exp.getExperimentalSettings().getSourceFiles()[0].getChecksumType()
     
-    input_loc: str = exp.getExperimentalSettings().getLoadedFilePath().decode()
+    # TODO restructure meta info
+
+    instr_srl: str = exp.getInstrument().getMetaValue('instrument serial number') \
+        if exp.getInstrument().metaValueExists('instrument serial number') else 'unknown'  # MS:1000529 in mzML
+
+    input_loc: str = exp.getExperimentalSettings().getLoadedFilePath()
     base_name: str = basename(input_loc)
-    chksm: str = sha256fromfile(exp.getExperimentalSettings().getLoadedFilePath().decode())
-    cmpltn: str = exp.getDateTime().get().decode()
+    chksm: str = utils.sha256fromfile(exp.getExperimentalSettings().getLoadedFilePath())
+    cmpltn: str = exp.getDateTime().get()
     # strt:datetime.datetime = datetime.datetime.strptime(cmpltn, '%Y-%m-%d %H:%M:%S') - datetime.timedelta(seconds=exp.getChromatograms()[0][exp.getChromatograms()[0].size()-1].getRT()*60)
 
     meta: mzqc.MetaDataParameters = mzqc.MetaDataParameters(
@@ -147,7 +243,12 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuali
                             mzqc.CvParameter(cvRef="MS", 
                                 accession="MS:1000031", 
                                 name="instrument model", 
-                                value=exp.getInstrument().getName().decode()
+                                value=exp.getInstrument().getName()
+                            ),
+                            mzqc.CvParameter(cvRef="MS", 
+                                accession="MS:1000031", 
+                                name="instrument model", 
+                                value=instr_srl
                             )
                             # TODO integrate parent location and checksum
                             # id: MS:1002846
@@ -157,7 +258,7 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuali
             )
         ], 
         analysisSoftware=[
-            mzqc.AnalysisSoftware(cvRef="MS", accession="MS:1000752", name="TOPP software", version="2.4", uri="openms.de")
+            mzqc.AnalysisSoftware(cvRef="MS", accession="MS:1000752", name="TOPP software", version=oms.__version__, uri="openms.de")
         ]
     )
 
@@ -175,11 +276,12 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuali
     tandem_spectrum_metrics_MS2: Dict[str,List[Any]] = defaultdict(list)
     trap_metrics_MS1: Dict[str,List[Any]] = defaultdict(list)
     trap_metrics_MS2: Dict[str,List[Any]] = defaultdict(list)
+    isolation_window_metrics: Dict[str,List[Any]] = defaultdict(list)
 
     #ActivationMethod look-up dict
     ams = {getattr(ActivationMethod,i): i for i in dir(ActivationMethod) if type(getattr(ActivationMethod,i))==int }
 
-    intens_sum: int = 0
+    intens_sum: np.float = 0
     last_surveyscan_index:int = 0
     for spin, spec in enumerate(exp):
         mslevelcounts[spec.getMSLevel()] += 1
@@ -216,15 +318,13 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuali
 
             trap_metrics_MS2['RT'].append(spec.getRT())
             trap_metrics_MS2['iontraptime'].append(iontraptime)
+            # TODO this goes wrong with files where there is no ams
             trap_metrics_MS2['activation_method'].append(ams.get(list(spec.getPrecursors()[0].getActivationMethods())[0],'unknown'))
             trap_metrics_MS2['activation_energy'].append(spec.getPrecursors()[0].getMetaValue('collision energy'))
 
             rank = spin - last_surveyscan_index
             spectrum_topn['RT'].append(spec.getRT())
             spectrum_topn['rank'].append(rank)
-
-            # TODO what to do wit dat???
-            # precursor_tab['surveyscan_intensity'].append(intens_sum)
 
             precursor_index = np.searchsorted(exp[last_surveyscan_index].get_peaks()[0], [exp[spin].getPrecursors()[0].getMZ()])[0]
             if precursor_index != np.array(exp[last_surveyscan_index].get_peaks()).shape[1]:
@@ -241,26 +341,86 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuali
             tandem_spectrum_metrics_MS2['precursor_c'].append(spec.getPrecursors()[0].getCharge())
 
             tandem_spectrum_metrics_MS2['surveyscan_intensity_sum'].append(last_surveyscan_intensity)            
-            tandem_spectrum_metrics_MS2['surveyscan_intensity_max'].append(last_surveyscan_max)            
+            tandem_spectrum_metrics_MS2['surveyscan_intensity_max'].append(last_surveyscan_max)   
+
+            isolation_window_metrics['RT'].append(spec.getRT())
+            isolation_window_metrics['isolation_target'].append(spec.getPrecursors()[0].getMZ())  # https://github.com/OpenMS/OpenMS/blob/d17cc251fd0c4068eb253b03c9fb107897771fdc/src/openms/source/FORMAT/HANDLERS/MzMLHandler.cpp#L1992
+            isolation_window_metrics['isolation_lower'].append(spec.getPrecursors()[0].getIsolationWindowLowerOffset())
+            isolation_window_metrics['isolation_upper'].append(spec.getPrecursors()[0].getIsolationWindowUpperOffset())
+            lower = spec.getPrecursors()[0].getMZ() - spec.getPrecursors()[0].getIsolationWindowLowerOffset()
+            upper = spec.getPrecursors()[0].getMZ() + spec.getPrecursors()[0].getIsolationWindowUpperOffset()
+            if spec.getPrecursors()[0].metaValueExists('collision energy'):
+                isolation_window_metrics['collision_energy'].append(spec.getPrecursors()[0].getMetaValue('collision energy'))  # move to basic
+
+            s = np.array([(i.getMZ(),i.getIntensity()) for i in exp[last_surveyscan_index]], ndmin = 2)
+            s = s[np.where(np.logical_and(s[:, 0]>=lower, s[:, 0]<=upper))[0]]
+            isolation_window_metrics['peaks_in_window'].append(np.shape(s)[0]) 
+            
+            int_sort_desc = np.flip(np.argsort(s[:,1]))
+            if np.shape(s)[0] > 1:
+                isolation_window_metrics['int_ratio_ranked_peaks_in_window'].append(
+                    s[int_sort_desc][:-1,1]/s[int_sort_desc][1:,1][0])  # intensity ratio between top1&2, 2&3, ...
+            else:
+                isolation_window_metrics['int_ratio_ranked_peaks_in_window'].append(0)  # bigger is better, though best is 0
+            
+            isolation_window_metrics['summed_window_intensity'].append(np.sum(s[int_sort_desc][:,1]))
+            isolation_window_metrics['isolation_target_intensity'].append(spec.getPrecursors()[0].getIntensity())
+            
+            # ms2 peaks directly from isolation window?
+            tol = 0.5
+            if spec.metaValueExists('filter string'):
+                if 'FTMS' in spec.getMetaValue('filter string'):
+                    tol = 0.05
+                elif 'ITMS' in spec.getMetaValue('filter string'):
+                    tol = 0.5
+                elif 'QTOF' in spec.getMetaValue('filter string'):  #TOFMS, SQMS, TQMS, SectorMS
+                    tol = 0.1
+
+            unfragmented = np.any([np.isclose(i[0],[x.getMZ() for x in spec], atol=tol) for i in s])
+            isolation_window_metrics['peaks_in_window_in_ms2'].append(str(unfragmented))
 
     ## Spectra detail numbers 
     metrics.append(
-        mzqc.QualityMetric(cvRef="QC", accession="QC:0000000", name="Spectrum acquisition metric values - MS1", value=spectrum_acquisition_metrics_MS1)
+        mzqc.QualityMetric(cvRef="QC", 
+                accession="QC:0000000", 
+                name="Spectrum acquisition metric values - MS1", 
+                value=spectrum_acquisition_metrics_MS1)
     )
     metrics.append(
-        mzqc.QualityMetric(cvRef="QC", accession="QC:0000000", name="Spectrum acquisition metric values - MS2", value=spectrum_acquisition_metrics_MS2)
+        mzqc.QualityMetric(cvRef="QC", 
+                accession="QC:0000000", 
+                name="Spectrum acquisition metric values - MS2", 
+                value=spectrum_acquisition_metrics_MS2)
     )
     metrics.append(
-        mzqc.QualityMetric(cvRef="QC", accession="QC:0000000", name="Spectra topn ranks", value=spectrum_topn)
+        mzqc.QualityMetric(cvRef="QC", 
+                accession="QC:0000000", 
+                name="Spectra topn ranks", 
+                value=spectrum_topn)
     )
     metrics.append(
-        mzqc.QualityMetric(cvRef="QC", accession="QC:0000000", name="Tandem spectrum metric values - MS2", value=tandem_spectrum_metrics_MS2)
+        mzqc.QualityMetric(cvRef="QC", 
+                accession="QC:0000000", 
+                name="Tandem spectrum metric values - MS2", 
+                value=tandem_spectrum_metrics_MS2)
     )
     metrics.append(
-        mzqc.QualityMetric(cvRef="QC", accession="QC:0000000", name="Trap metric values - MS1", value=trap_metrics_MS1)
+        mzqc.QualityMetric(cvRef="QC", 
+                accession="QC:0000000", 
+                name="Trap metric values - MS1", 
+                value=trap_metrics_MS1)
     )
     metrics.append(
-        mzqc.QualityMetric(cvRef="QC", accession="QC:0000000", name="Trap metric values - MS2", value=trap_metrics_MS2)
+        mzqc.QualityMetric(cvRef="QC", 
+                accession="QC:0000000", 
+                name="Trap metric values - MS2", 
+                value=trap_metrics_MS2)
+    )
+    metrics.append(
+        mzqc.QualityMetric(cvRef="QC", 
+                accession="QC:0000000", 
+                name="isolation window metrics", 
+                value=isolation_window_metrics)
     )
 
     ## Spectra numbers
@@ -407,6 +567,8 @@ def getIDQuality(exp: oms.MSExperiment, pro_ids: List[oms.ProteinIdentification]
     identification_scoring_metrics: Dict[str,List[Any]] = defaultdict(list)
     identification_sequence_metrics: Dict[str,List[Any]] = defaultdict(list)
     hydrophobicity_metrics: Dict[str,List[Any]] = defaultdict(list)
+    
+    # TODO constants available since 2.5 as oms.Constants.PROTON_MASS_U
     PROTON_MASS_U = 1.00727646677  # Constants::PROTON_MASS_U unavailable
 
     score_type = pep_ids[0].getScoreType().decode()
@@ -493,6 +655,11 @@ def getIDQuality(exp: oms.MSExperiment, pro_ids: List[oms.ProteinIdentification]
                 value=float(len(pep_ids))/float(ms2num))
     )
 
+    return metrics
+
+def getMS2Quality(exp: oms.MSExperiment) -> List[mzqc.QualityMetric]:
+    metrics: List[mzqc.QualityMetric] = list() 
+    # TODO 
     return metrics
 
 def getChargeRatios(identification_scoring_metrics:mzqc.QualityMetric) -> List[mzqc.QualityMetric]:
