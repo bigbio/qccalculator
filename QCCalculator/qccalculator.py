@@ -116,25 +116,6 @@ def getTrapTime(spec: oms.MSSpectrum, acqusition_unavailable= True) -> float:
 
 from enum import Enum, unique
 
-@unique
-class MyActivationMethod(Enum):
-    CID=0
-    PSD=1
-    PD=2
-    SID=3
-    BIRD=4
-    ECD=5
-    IMD=6
-    SORI=7
-    HCID=8
-    LCID=9
-    PHD=10
-    ETD=11
-    PQD=12
-    # print(ActivationMethod(2).name)
-    # easier loop-up, no hard-coded connection with:
-    # from pyopenms import ActivationMethod; {getattr(ActivationMethod,i): i for i in dir(ActivationMethod) if type(getattr(ActivationMethod,i))==int };
-
 def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuality:
     metrics: List[mzqc.QualityMetric] = list()
     if exp.getExperimentalSettings().getSourceFiles():
