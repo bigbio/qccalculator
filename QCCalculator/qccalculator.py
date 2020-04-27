@@ -18,6 +18,7 @@ import numpy as np
 import pandas
 import pronto
 import pyopenms as oms
+from pyopenms import ActivationMethod
 from Bio import SeqIO, SeqRecord
 from Bio.SeqUtils import ProtParam
 from mzqc import MZQCFile as mzqc
@@ -31,6 +32,34 @@ def sha256fromfile(filename: str) -> str:
         for n in iter(lambda : f.readinto(mv), 0):
             sha.update(mv[:n])
     return sha.hexdigest()
+
+def cast_if_int(pot_int):
+    try:
+        return int(pot_int)
+    except ValueError as e:
+        return pot_int
+
+def pep_native_id(p: oms.Peptide) -> Union[int,None]:
+    spre = p.getMetaValue('spectrum_reference')
+    if spre:
+        matches = re.findall("scan=(\d+)$", spre.decode())
+        if len(matches)!=1:  # should really never be >1 with the `$`
+            return None
+        else:
+            return cast_if_int(matches[0])
+    else:
+        return None
+
+def spec_native_id(s: oms.MSSpectrum) -> Union[int,None]:
+    spre = s.getNativeID()
+    if spre:
+        matches = re.findall("scan=(\d+)$", spre.decode())
+        if len(matches)!=1:  # should really never be >1 with the `$`
+            return None
+        else:
+            return cast_if_int(matches[0])
+    else:
+        return None
 
 def getMassDifference(theo_mz: float, exp_mz: float, use_ppm: bool=True)-> float:
     error: float = (exp_mz - theo_mz)
@@ -84,6 +113,8 @@ def getTrapTime(spec: oms.MSSpectrum, acqusition_unavailable= True) -> float:
                     tt = j.getMetaValue("MS:1000927")
                     break
     return tt
+
+from enum import Enum, unique
 
 def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuality:
     metrics: List[mzqc.QualityMetric] = list()
@@ -145,6 +176,9 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuali
     trap_metrics_MS1: Dict[str,List[Any]] = defaultdict(list)
     trap_metrics_MS2: Dict[str,List[Any]] = defaultdict(list)
 
+    #ActivationMethod look-up dict
+    ams = {getattr(ActivationMethod,i): i for i in dir(ActivationMethod) if type(getattr(ActivationMethod,i))==int }
+
     intens_sum: int = 0
     last_surveyscan_index:int = 0
     for spin, spec in enumerate(exp):
@@ -178,9 +212,12 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuali
             spectrum_acquisition_metrics_MS2['SN'].append(getSN_medianmethod(spec))
             spectrum_acquisition_metrics_MS2['peakcount'].append(spec.size())
             spectrum_acquisition_metrics_MS2['int'].append(intens_sum.item())  # .item() for dtype to pytype
+            spectrum_acquisition_metrics_MS2['native_id'].append(spec_native_id(spec))
 
             trap_metrics_MS2['RT'].append(spec.getRT())
             trap_metrics_MS2['iontraptime'].append(iontraptime)
+            trap_metrics_MS2['activation_method'].append(ams.get(list(spec.getPrecursors()[0].getActivationMethods())[0],'unknown'))
+            trap_metrics_MS2['activation_energy'].append(spec.getPrecursors()[0].getMetaValue('collision energy'))
 
             rank = spin - last_surveyscan_index
             spectrum_topn['RT'].append(spec.getRT())
@@ -392,9 +429,10 @@ def getIDQuality(exp: oms.MSExperiment, pro_ids: List[oms.ProteinIdentification]
         warnings.warn("OBO does not contain any entry matching the identification score, proceed at own risk.", Warning)
         score_col_name = score_type
 
-    for pepi in pep_ids:
+    for pepi in pep_ids:            
+        pid = pep_native_id(pepi)
         if pepi.getHits():
-            tmp = pepi.getHits()[0]
+            tmp = pepi.getHits()[0]  # TODO apply custom filters and also consider 'pass_threshold'
             identification_scoring_metrics['RT'].append(pepi.getRT())
             identification_scoring_metrics['c'].append(tmp.getCharge())
             identification_scoring_metrics[score_col_name].append(tmp.getScore())
@@ -413,6 +451,7 @@ def getIDQuality(exp: oms.MSExperiment, pro_ids: List[oms.ProteinIdentification]
             identification_sequence_metrics['RT'].append(pepi.getRT())
             identification_sequence_metrics['peptide'].append(tmp.getSequence().toString().decode().lstrip().rstrip())
             identification_sequence_metrics['target'].append(tmp.getMetaValue('target_decoy').decode().lower() == 'target')
+            identification_sequence_metrics['native_id'].append(pid)
 
     #   #varmod???         
     #   for (UInt w = 0; w < var_mods.size(); ++w)
