@@ -464,7 +464,7 @@ def getIDQuality(exp: oms.MSExperiment, pro_ids: List[oms.ProteinIdentification]
             identification_sequence_metrics['RT'].append(pepi.getRT())
             identification_sequence_metrics['peptide'].append(tmp.getSequence().toString().decode().lstrip().rstrip())
             identification_sequence_metrics['target'].append(tmp.getMetaValue('target_decoy').decode().lower() == 'target')
-            identification_sequence_metrics['target'].append(pid)
+            identification_sequence_metrics['native_id'].append(pid)
 
     #   #varmod???         
     #   for (UInt w = 0; w < var_mods.size(); ++w)
