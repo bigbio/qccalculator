@@ -14,6 +14,7 @@ setup(
         "rpy2",
         "mzqc-pylib",
         "Click",
+        "pandas",
         ],
     include_package_data=True,
     #scripts=['bin/qspector/qspector.py'] ,
