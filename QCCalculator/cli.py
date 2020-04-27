@@ -4,13 +4,14 @@ import click
 import logging
 from datetime import datetime
 import gzip
+from typing import List
+
 import pyopenms as oms
 from mzqc import MZQCFile as qc
-
 from .qccalculator import getBasicQuality, getIDQuality
 
-rqs = list()
-sqs = list()
+rqs: List[qc.RunQuality] = list()
+sqs: List[qc.SetQuality] = list()
 out = str()
 zp = False
 
@@ -104,6 +105,42 @@ def full(filename, mzid=None, idxml=None):
     rqs.append(rq)
 
     finale()
+    
+@start.command()
+@click.argument('filename', type=click.Path(exists=True))
+@click.option('--zipurl', type=click.Path(exists=True), required=True, help="The URL to a max quant output zip file (must contain evidence.txt and parameters.txt).")
+@click.option('--rawname', type=str, default="", help="The raw file name of interest (as in evidence.txt) without path or extension.")
+def maxq(filename, zipurl, rawname): 
+    """Calculate all possible metrics for these files. These data sources will be included in set metrics."""
+    exp = oms.MSExperiment()
+    oms.MzMLFile().load(click.format_filename(filename), exp)
+    rq = getBasicQuality(exp)  
+    
+    ms2num = 0
+    for x in rq.qualityMetrics:
+        if x.name == "Number of MS2 spectra":
+            ms2num = x.value
+
+    if ms2num <1:
+        logging.warn("We seem to have found no MS2 spectra which is unlikely to be true since you have also given some identifications. \
+                We continue with symbolic value of 1 for the number of MS2 spectra, \
+                however this means some metrics will invariably be incorrect!\
+                Please make sure, we have the right inputs.")
+        ms2num = 1
+
+    try:
+        mq,params = get_mq_zipped_evidence(mq_zip_url)
+        if not rawname:
+            logging.warning("Infering rawname from mzML")
+            rawname = basename(exp.getExperimentalSettings().getSourceFiles()[0].getNameOfFile().decode()) # TODO split extensions
+
+        rq.qualityMetrics.extend(getMQMetrics(rawname, params,mq, ms2num))
+        rqs.append(rq)
+    except:
+        logging.warn("Retrieving any results from the URL failed.")
+
+    finale()
+
     
 @start.command()
 @click.argument('filename', type=click.Path(exists=True))
