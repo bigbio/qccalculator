@@ -8,7 +8,8 @@ from typing import List
 
 import pyopenms as oms
 from mzqc import MZQCFile as qc
-from .qccalculator import getBasicQuality, getIDQuality
+# from .qccalculator import getBasicQuality, getIDQuality
+from QCCalculator import utils, basicqc, idqc, idqcmq, enzymeqc, masstraceqc 
 
 rqs: List[qc.RunQuality] = list()
 sqs: List[qc.SetQuality] = list()
@@ -67,7 +68,7 @@ def full(filename, mzid=None, idxml=None):
     """Calculate all possible metrics for these files. These data sources will be included in set metrics."""
     exp = oms.MSExperiment()
     oms.MzMLFile().load(click.format_filename(filename), exp)
-    rq = getBasicQuality(exp)  
+    rq = basicqc.getBasicQuality(exp)  
     
     if idxml and mzid:
         with click.Context(command) as ctx:
@@ -97,11 +98,11 @@ def full(filename, mzid=None, idxml=None):
         oms_id = oms.MzIdentMLFile()
         idf = mzid
     if idxml:
-        oms_id = oms.MzIdentMLFile()
+        oms_id = oms.IdXMLFile()
         idf = idxml
     if idf:
         oms_id.load(click.format_filename(idf), pros, peps)
-        rq.qualityMetrics.extend(getIDQuality(exp, pros, peps, ms2num))
+        rq.qualityMetrics.extend(idqc.getIDQuality(exp, pros, peps, ms2num))
     rqs.append(rq)
 
     finale()
@@ -114,7 +115,7 @@ def maxq(filename, zipurl, rawname):
     """Calculate all possible metrics for these files. These data sources will be included in set metrics."""
     exp = oms.MSExperiment()
     oms.MzMLFile().load(click.format_filename(filename), exp)
-    rq = getBasicQuality(exp)  
+    rq = basicqc.getBasicQuality(exp)  
     
     ms2num = 0
     for x in rq.qualityMetrics:
@@ -129,12 +130,12 @@ def maxq(filename, zipurl, rawname):
         ms2num = 1
 
     try:
-        mq,params = get_mq_zipped_evidence(mq_zip_url)
+        mq,params = idqcmq.loadMQZippedResults(mq_zip_url)
         if not rawname:
             logging.warning("Infering rawname from mzML")
             rawname = basename(exp.getExperimentalSettings().getSourceFiles()[0].getNameOfFile().decode()) # TODO split extensions
 
-        rq.qualityMetrics.extend(getMQMetrics(rawname, params,mq, ms2num))
+        rq.qualityMetrics.extend(idqcmq.getMQMetrics(rawname, params,mq, ms2num))
         rqs.append(rq)
     except:
         logging.warn("Retrieving any results from the URL failed.")
@@ -148,7 +149,7 @@ def basic(filename):
     """Calculate the basic metrics available from virtually every mzML file."""
     exp = oms.MSExperiment()
     oms.MzMLFile().load(click.format_filename(filename), exp)
-    rq = getBasicQuality(exp)  
+    rq = basicqc.getBasicQuality(exp)  
     rqs.append(rq)
 
     finale()

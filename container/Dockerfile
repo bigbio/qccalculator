@@ -1,13 +1,6 @@
 FROM mwalzer/python-r:3.6-3.5-full_qc_pack
  
-# RUN pip install pip --upgrade
-# RUN pip install setuptools --upgrade
-# RUN pip install --force-reinstall 'pytest<=5.0.1'
-# RUN pip install numpy mypy pronto pytest jupyter rpy2 biopython flask
-
-# RUN pip install pandas requests
-
-RUN pip install pronto biopython pandas requests plotly-express toposort
+RUN pip install pronto biopython pandas requests plotly-express toposort click
 RUN pip install pyopenms==2.5.* 
 RUN pip install -U git+https://github.com/bigbio/mzqc-pylib.git#egg=mzqc-pylib
 
