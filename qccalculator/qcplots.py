@@ -1,15 +1,10 @@
 import rpy2.robjects.lib.ggplot2 as ggplot2
 import rpy2.robjects as robjects
-from rpy2.robjects import Formula, Environment
-from rpy2.robjects.vectors import IntVector, FloatVector
-from rpy2.robjects.lib import grid
 from rpy2.robjects.packages import importr, data
-from rpy2.rinterface_lib.embedded import RRuntimeError
 from rpy2.robjects.lib.dplyr import DataFrame
-from rpy2.robjects.lib.dplyr import (mutate, group_by, summarize)
 from rpy2.rinterface import parse
 import rpy2.robjects.numpy2ri
-import warnings
+
 import math, datetime
 import tempfile
 import base64
@@ -42,8 +37,8 @@ def handle_plot_format(pp, plot_type: PlotType, hosturl="http://localhost", port
                 # end stupid fix
                 with open(t.name, "r") as f:
                     s = f.read()
-                    s = s.replace("replaceme", "{h}{p}/{l}".format(h=hosturl, 
-                                                l=serverstructure_library_destination, 
+                    s = s.replace("replaceme", "{h}{p}/{l}".format(h=hosturl,
+                                                l=serverstructure_library_destination,
                                                 p="" if port is None else ":"+str(port)))
         return s
     else:
@@ -111,7 +106,7 @@ def plot_SN(table, mslevel=2, plot_type=PlotType.PNG, hosturl="http://localhost"
         ggplot2.scale_y_continuous(expand=c0) + \
         ggplot2.labs(x="S/N") + \
         ggplot2.ggtitle("S/N distribution in MS{} spectra".format(str(mslevel)))
-    
+
     return handle_plot_format(pp, plot_type, hosturl, port)
 
 def plot_dppm(psm_table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
@@ -131,7 +126,7 @@ def plot_dppm(psm_table, plot_type=PlotType.PNG, hosturl="http://localhost", por
         ggplot2.scale_y_continuous(expand=c0) + \
         ggplot2.labs(x=parse('paste(Delta, "ppm")'), y="Frequency density")  + \
         ggplot2.ggtitle("Mass error distribution")
-    
+
     return handle_plot_format(pp, plot_type, hosturl, port)
 
 def plot_dppm_over_time(psm_table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
@@ -141,7 +136,7 @@ def plot_dppm_over_time(psm_table, plot_type=PlotType.PNG, hosturl="http://local
     rinf = robjects.r('Inf')
     c0 = robjects.r('c(0,0)')
     c10 = robjects.r('c(-10,10)')
-    
+
     b=robjects.POSIXct(tuple([datetime.datetime.fromtimestamp(60*10)]))
     lim_maj=int(max(psm_table.value['RT'])//(60*30))
     lim_min=int(max(psm_table.value['RT'])//(60*10))+1
@@ -172,10 +167,10 @@ def plot_dppm_over_time(psm_table, plot_type=PlotType.PNG, hosturl="http://local
 def plot_scorecorrelatenoise(psm_table, prec_table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
     scrtyp = list(filter(lambda x: x!="RT" and x!="c", psm_table.value.keys()))[0]  # mah!
 
-    npa_psm = np.array([psm_table.value['RT'], 
+    npa_psm = np.array([psm_table.value['RT'],
                         psm_table.value[scrtyp]])
     npa_psm = npa_psm[:,npa_psm[0].argsort()]
-    
+
     npa_prc = np.array([prec_table.value['RT'],
                         prec_table.value['SN']])
     npa_prc = npa_prc[:,npa_prc[0].argsort()]
@@ -185,11 +180,11 @@ def plot_scorecorrelatenoise(psm_table, prec_table, plot_type=PlotType.PNG, host
     rpy2.robjects.numpy2ri.activate()
     dataf = robjects.DataFrame( {'SN': npa_prc[:,idinter[1]][1] ,
                                 'score': npa_psm[:,idinter[2]][1] })
-    
+
     stats = importr('stats')
     base = importr('base')
     r2 = np.around(np.float(base.summary(stats.lm('SN~score^2', data=dataf))[7][0]), decimals=4)  # 7 is r.squared, 8 is adj.r.squared - find out more with items()
-    # TODO check 
+    # TODO check
     c0 = robjects.r('c(0,0)')
     pp = ggplot2.ggplot(dataf) + \
         ggplot2.aes_string(x='score', y='SN') + \
@@ -198,7 +193,7 @@ def plot_scorecorrelatenoise(psm_table, prec_table, plot_type=PlotType.PNG, host
         ggplot2.scale_x_continuous(expand=c0) + \
         ggplot2.scale_y_continuous(expand=c0) + \
         ggplot2.labs(x="score({})".format(scrtyp), y="S/N")  + \
-        ggplot2.ggtitle("ID score and noise correlation (quadratic R.squared={r2})".format(r2=r2)) 
+        ggplot2.ggtitle("ID score and noise correlation (quadratic R.squared={r2})".format(r2=r2))
 
     return handle_plot_format(pp, plot_type, hosturl, port)
 
@@ -230,8 +225,8 @@ def plot_lengths(seq_table, plot_type=PlotType.PNG, hosturl="http://localhost", 
 def plot_topn(prec_table, surv_table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
     h = np.histogram(prec_table.value['RT'], bins=surv_table.value['RT']+[surv_table.value['RT'][-1]+surv_table.value['RT'][-2]])
 
-    d= {'SN': robjects.FloatVector(tuple(surv_table.value['SN'])), 
-        'RT': robjects.POSIXct((tuple([datetime.datetime.fromtimestamp(i) for i in surv_table.value['RT']]))), 
+    d= {'SN': robjects.FloatVector(tuple(surv_table.value['SN'])),
+        'RT': robjects.POSIXct((tuple([datetime.datetime.fromtimestamp(i) for i in surv_table.value['RT']]))),
         'TopN': robjects.IntVector(tuple(h[0])) }
     dataf = robjects.DataFrame(d)
 
@@ -255,8 +250,8 @@ def plot_topn(prec_table, surv_table, plot_type=PlotType.PNG, hosturl="http://lo
 def plot_topn_sn(prec_table, surv_table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
     h = np.histogram(prec_table.value['RT'], bins=surv_table.value['RT']+[surv_table.value['RT'][-1]+surv_table.value['RT'][-2]])
     qs =  np.quantile(surv_table.value['SN'], [.25,.5,.75])
-    d= {'SN': robjects.FloatVector(tuple(surv_table.value['SN'])), 
-        'RT': robjects.POSIXct((tuple([datetime.datetime.fromtimestamp(i) for i in surv_table.value['RT']]))), 
+    d= {'SN': robjects.FloatVector(tuple(surv_table.value['SN'])),
+        'RT': robjects.POSIXct((tuple([datetime.datetime.fromtimestamp(i) for i in surv_table.value['RT']]))),
         'TopN': robjects.IntVector(tuple(h[0])),
         'SN.quartile': robjects.FactorVector((tuple( ['q1' if v < qs[0] else 'q2' if qs[0]<v<qs[1] else 'q3' if qs[1]<v<qs[2] else 'q4' for v in surv_table.value['SN']] )))}
     dataf = robjects.DataFrame(d)
@@ -282,8 +277,8 @@ def plot_topn_sn(prec_table, surv_table, plot_type=PlotType.PNG, hosturl="http:/
 def plot_topn_rt(prec_table, surv_table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
     h = np.histogram(prec_table.value['RT'], bins=surv_table.value['RT']+[surv_table.value['RT'][-1]+surv_table.value['RT'][-2]])
 
-    d= {'SN': robjects.FloatVector(tuple(surv_table.value['SN'])), 
-        'RT': robjects.POSIXct((tuple([datetime.datetime.fromtimestamp(i) for i in surv_table.value['RT']]))), 
+    d= {'SN': robjects.FloatVector(tuple(surv_table.value['SN'])),
+        'RT': robjects.POSIXct((tuple([datetime.datetime.fromtimestamp(i) for i in surv_table.value['RT']]))),
         'TopN': robjects.IntVector(tuple(h[0])) }
     dataf = robjects.DataFrame(d)
 
@@ -311,13 +306,13 @@ def plot_topn_rt(prec_table, surv_table, plot_type=PlotType.PNG, hosturl="http:/
     return handle_plot_format(pp, plot_type, hosturl, port)
 
 def plot_idmap(prec_table, psm_table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
-    d_psm= {'MZ': robjects.FloatVector(tuple(psm_table.value['MZ'])), 
-        'RT': robjects.POSIXct((tuple([datetime.datetime.fromtimestamp(i) for i in psm_table.value['RT']]))), 
+    d_psm= {'MZ': robjects.FloatVector(tuple(psm_table.value['MZ'])),
+        'RT': robjects.POSIXct((tuple([datetime.datetime.fromtimestamp(i) for i in psm_table.value['RT']]))),
         'col': robjects.FactorVector(tuple(["identified"]*len(psm_table.value['MZ']))) }
     dataf_psm = robjects.DataFrame(d_psm)
 
-    d_prc= {'MZ': robjects.FloatVector(tuple(prec_table.value['precursor_mz'])), 
-        'RT': robjects.POSIXct((tuple([datetime.datetime.fromtimestamp(i) for i in prec_table.value['RT']]))), 
+    d_prc= {'MZ': robjects.FloatVector(tuple(prec_table.value['precursor_mz'])),
+        'RT': robjects.POSIXct((tuple([datetime.datetime.fromtimestamp(i) for i in prec_table.value['RT']]))),
         'col': robjects.FactorVector(tuple(["recorded"]*len(prec_table.value['precursor_mz']))) }
     dataf_prc = robjects.DataFrame(d_prc)
 
@@ -375,7 +370,7 @@ def plot_gravy(gravy_table, start_time, plot_type=PlotType.PNG, hosturl="http://
     return handle_plot_format(pp, plot_type, hosturl, port)
 
 def plot_charge(prec_table, psm_table=None, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
-    d_prc= {'c': robjects.IntVector(tuple(prec_table.value['precursor_c'])), 
+    d_prc= {'c': robjects.IntVector(tuple(prec_table.value['precursor_c'])),
         'col': robjects.FactorVector(tuple(["recorded"]*len(prec_table.value['precursor_c']))) }
     dataf = robjects.DataFrame(d_prc)
 
@@ -396,7 +391,7 @@ def plot_charge(prec_table, psm_table=None, plot_type=PlotType.PNG, hosturl="htt
     # TODO N/A handling???
 
     if psm_table:
-        d_prc= {'c': robjects.IntVector(tuple(psm_table.value['c'])), 
+        d_prc= {'c': robjects.IntVector(tuple(psm_table.value['c'])),
             'col': robjects.FactorVector(tuple(["identified"]*len(psm_table.value['c']))) }
         dataf_id = robjects.DataFrame(d_prc)
         pp = pp + ggplot2.geom_bar(data=dataf_id)
@@ -426,7 +421,7 @@ def plot_peaknum(table, mslevel=2, plot_type=PlotType.PNG, hosturl="http://local
     return handle_plot_format(pp, plot_type, hosturl, port)
 
 # TODO unfinished
-def plot_intensities(table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):    
+def plot_intensities(table, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
     grdevices = importr('grDevices')
     d= {'RT': robjects.POSIXct((tuple([datetime.datetime.fromtimestamp(i) for i in table.value['RT']]))),
         'int': robjects.FloatVector(tuple(table.value['int']))}
@@ -451,7 +446,7 @@ def plot_intensities(table, plot_type=PlotType.PNG, hosturl="http://localhost", 
         ggplot2.coord_flip() + \
         combiaxis2 + \
         ggplot2.labs(x="", y="Intensities")
-        
+
     # pracma = importr('pracma')
     # AUC <- trapz(QCTIC$MS.1000894_.sec.,QCTIC$MS.1000285)
     # auc = np.trapz(table.value['int'], x=table.value['RT'])
@@ -474,7 +469,7 @@ def plot_events(tic_table, surv_table, prec_table, psm_table=None, plot_type=Plo
     datasources = [("Chromatogram", tic_table),("MS1",surv_table),("MS2", prec_table)]
     if psm_table:
         datasources.append(("Identifications",psm_table))
-    
+
     dataf = robjects.DataFrame({})
     for annot, tab in datasources:
         if annot == "Chromatogram":
@@ -516,7 +511,7 @@ def plot_events(tic_table, surv_table, prec_table, psm_table=None, plot_type=Plo
         ggplot2.coord_flip() + \
         chron.scale_y_chron(format ="%H:%M:%S") + \
         ggplot2.labs(x="Events", y="Time")  + \
-        ggplot2.ggtitle("Quartiles of Chromatographic, MS1, MS2, and identification events over RT") 
+        ggplot2.ggtitle("Quartiles of Chromatographic, MS1, MS2, and identification events over RT")
 
     dataf.to_csvfile('tests/events.csv')
     return handle_plot_format(pp, plot_type, hosturl, port)
@@ -570,7 +565,7 @@ def plot_coverage(coverage_table, plot_type=PlotType.PNG, hosturl="http://localh
     return handle_plot_format(pp, plot_type, hosturl, port)
 
 def plot_traptime(table, mslevel=2, plot_type=PlotType.PNG, hosturl="http://localhost", port=5000):
-    d= {'ioninjectiontime': robjects.FloatVector(tuple(table.value['iontraptime'])), 
+    d= {'ioninjectiontime': robjects.FloatVector(tuple(table.value['iontraptime'])),
         'RT': robjects.POSIXct((tuple([datetime.datetime.fromtimestamp(i) for i in table.value['RT']]))) }
     dataf = robjects.DataFrame(d)
 

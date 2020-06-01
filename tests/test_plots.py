@@ -1,5 +1,5 @@
 import pytest
-from MZQC import MZQCFile as mzqc
+from mzqc import MZQCFile as mzqc
 from qccalculator.qcplots import *
 
 import tempfile
@@ -7,7 +7,7 @@ import datetime
 import base64
 import re
 
-with open("tests/plot_test_files/test.mzqc", "r") as f:
+with open("plot_test_files/test.mzqc", "r") as f:
     tqc = mzqc.JsonSerialisable.FromJson(f.read())['mzQC']
 rq = tqc.runQualities[0]
 
@@ -27,7 +27,7 @@ class TestSvgFunctionality:
         svg = plot_TIC(metric[0],strt, PlotType.SVG)
         # with open("tests/plot_test_files/tic_svg_func.svg","w") as f:
         #     f.write(svg)
-        with open("tests/plot_test_files/tic_svg_func.svg","r") as f:
+        with open("plot_test_files/tic_svg_func.svg","r") as f:
             cmp_r = f.read()
         assert cmp_r == svg
 
@@ -40,7 +40,7 @@ class TestPlotFunctionality:
         tic = plot_TIC(metric[0],strt)
         # with open("tests/plot_test_files/_tic_png_func.png","wb") as fb:
         #     fb.write(base64.decodebytes(tic.encode()))
-        with open("tests/plot_test_files/tic_png_func.png","rb") as fb:
+        with open("plot_test_files/tic_png_func.png","rb") as fb:
             cmp_r = base64.b64encode(fb.read()).decode()
         assert cmp_r == tic
 
@@ -51,7 +51,7 @@ class TestPlotFunctionality:
         sn = plot_SN(metric[0])
         # with open("tests/plot_test_files/_sn_png_func.png","wb") as fb:
         #     fb.write(base64.decodebytes(sn.encode()))
-        with open("tests/plot_test_files/sn_png_func.png","rb") as fb:
+        with open("plot_test_files/sn_png_func.png","rb") as fb:
             cmp_r = base64.b64encode(fb.read()).decode()
         assert cmp_r == sn
 
@@ -62,7 +62,7 @@ class TestPlotFunctionality:
         topn = plot_topn(metric[1], metric[0])
         # with open("tests/plot_test_files/topn_png_func.png","wb") as fb:
         #     fb.write(base64.decodebytes(topn.encode()))
-        with open("tests/plot_test_files/topn_png_func.png","rb") as fb:
+        with open("plot_test_files/topn_png_func.png","rb") as fb:
             cmp_r = base64.b64encode(fb.read()).decode()
         assert cmp_r == topn
 
@@ -73,7 +73,7 @@ class TestPlotFunctionality:
         topnsn = plot_topn_sn(metric[1], metric[0])
         # with open("tests/plot_test_files/topn_sn_png_func.png","wb") as fb:
         #     fb.write(base64.decodebytes(topnsn.encode()))
-        with open("tests/plot_test_files/topn_sn_png_func.png","rb") as fb:
+        with open("plot_test_files/topn_sn_png_func.png","rb") as fb:
             cmp_r = base64.b64encode(fb.read()).decode()
         assert cmp_r == topnsn
 
@@ -84,7 +84,7 @@ class TestPlotFunctionality:
         topnrt = plot_topn_rt(metric[1], metric[0])
         # with open("tests/plot_test_files/_topn_rt_png_func.png","wb") as fb:
         #     fb.write(base64.decodebytes(topnrt.encode()))
-        with open("tests/plot_test_files/topn_rt_png_func.png","rb") as fb:
+        with open("plot_test_files/topn_rt_png_func.png","rb") as fb:
             cmp_r = base64.b64encode(fb.read()).decode()
         assert cmp_r == topnrt
 
@@ -96,7 +96,7 @@ class TestPlotFunctionality:
         idmap = plot_idmap(metric[0], metric[1])
         # with open("tests/plot_test_files/_idmap_png_func.png","wb") as fb:
         #     fb.write(base64.decodebytes(idmap.encode()))
-        with open("tests/plot_test_files/idmap_png_func.png","rb") as fb:
+        with open("plot_test_files/idmap_png_func.png","rb") as fb:
             cmp_r = base64.b64encode(fb.read()).decode()
         assert cmp_r == idmap
 
@@ -106,7 +106,7 @@ class TestPlotFunctionality:
         dppm = plot_dppm(metric[0])
         # with open("tests/plot_test_files/dppm_png_func.png","wb") as fb:
         #     fb.write(base64.decodebytes(dppm.encode()))
-        with open("tests/plot_test_files/dppm_png_func.png","rb") as fb:
+        with open("plot_test_files/dppm_png_func.png","rb") as fb:
             cmp_r = base64.b64encode(fb.read()).decode()
         assert cmp_r == dppm
 
@@ -116,7 +116,7 @@ class TestPlotFunctionality:
         dppm_ot = plot_dppm_over_time(metric[0])
         # with open("tests/plot_test_files/dppm_ot_png_func.png","wb") as fb:
         #     fb.write(base64.decodebytes(dppm.encode()))
-        with open("tests/plot_test_files/dppm_ot_png_func.png","rb") as fb:
+        with open("plot_test_files/dppm_ot_png_func.png","rb") as fb:
             cmp_rot = base64.b64encode(fb.read()).decode()
         assert cmp_rot == dppm_ot
 
@@ -127,7 +127,7 @@ class TestPlotFunctionality:
 
         # with open("tests/plot_test_files/_charges_png_func.png","wb") as fb:
         #     fb.write(base64.decodebytes(charges.encode()))
-        with open("tests/plot_test_files/charges_png_func.png","rb") as fb:
+        with open("plot_test_files/charges_png_func.png","rb") as fb:
             cmp_r = base64.b64encode(fb.read()).decode()
         assert cmp_r == charges
 
@@ -138,7 +138,7 @@ class TestPlotFunctionality:
         pk = plot_peaknum(metric[0], 1)
         # with open("tests/plot_test_files/pk1_png_func.png","wb") as fb:
         #     fb.write(base64.decodebytes(pk.encode()))
-        with open("tests/plot_test_files/pk1_png_func.png","rb") as fb:
+        with open("plot_test_files/pk1_png_func.png","rb") as fb:
             cmp_r = base64.b64encode(fb.read()).decode()
         assert cmp_r == pk
 
@@ -149,7 +149,7 @@ class TestPlotFunctionality:
         pk = plot_peaknum(metric[0], 2)
         # with open("tests/plot_test_files/pk2_png_func.png","wb") as fb:
         #     fb.write(base64.decodebytes(pk.encode()))
-        with open("tests/plot_test_files/pk2_png_func.png","rb") as fb:
+        with open("plot_test_files/pk2_png_func.png","rb") as fb:
             cmp_r = base64.b64encode(fb.read()).decode()
         assert cmp_r == pk
 
@@ -160,7 +160,7 @@ class TestPlotFunctionality:
         gr = plot_intensities(metric[0])
         # with open("tests/plot_test_files/_int_png_func.png","wb") as fb:
         #     fb.write(base64.decodebytes(gr.encode()))
-        with open("tests/plot_test_files/int_png_func.png","rb") as fb:
+        with open("plot_test_files/int_png_func.png","rb") as fb:
             cmp_r = base64.b64encode(fb.read()).decode()
         assert cmp_r == gr
 
@@ -174,7 +174,7 @@ class TestPlotFunctionality:
         ev = plot_events(metric[0], metric[1], metric[2], metric[3])
         # with open("tests/plot_test_files/_ev_png_func.png","wb") as fb:
         #     fb.write(base64.decodebytes(ev.encode()))
-        with open("tests/plot_test_files/ev_png_func.png","rb") as fb:
+        with open("plot_test_files/ev_png_func.png","rb") as fb:
             cmp_r = base64.b64encode(fb.read()).decode()
         assert cmp_r == ev
 
@@ -185,7 +185,7 @@ class TestPlotFunctionality:
         tr = plot_traptime(metric[0], 2)
         # with open("tests/plot_test_files/_tr_png_func.png","wb") as fb:
         #     fb.write(base64.decodebytes(tr.encode()))
-        with open("tests/plot_test_files/tr_png_func.png","rb") as fb:
+        with open("plot_test_files/tr_png_func.png","rb") as fb:
             pftr = base64.b64encode(fb.read()).decode()
         assert pftr == tr
 
@@ -197,7 +197,7 @@ class TestPlotFunctionality:
         gr = plot_gravy(metric[0], strt)
         # with open("tests/plot_test_files/_gr_png_func.png","wb") as fb:
         #     fb.write(base64.decodebytes(gr.encode()))
-        with open("tests/plot_test_files/gr_png_func.png","rb") as fb:
+        with open("plot_test_files/gr_png_func.png","rb") as fb:
             pfgr = base64.b64encode(fb.read()).decode()
         assert pfgr == gr
 
@@ -209,7 +209,7 @@ class TestPlotFunctionality:
         le = plot_lengths(metric[0])
         # with open("tests/plot_test_files/_le_png_func.png","wb") as fb:
         #     fb.write(base64.decodebytes(le.encode()))
-        with open("tests/plot_test_files/le_png_func.png","rb") as fb:
+        with open("plot_test_files/le_png_func.png","rb") as fb:
             pfle = base64.b64encode(fb.read()).decode()
         assert pfle == le
 
@@ -222,7 +222,7 @@ class TestPlotFunctionality:
         ssn = plot_scorecorrelatenoise(metric[0], metric[1])
         # with open("tests/plot_test_files/_ssn_png_func.png","wb") as fb:
         #     fb.write(base64.decodebytes(ssn.encode()))
-        with open("tests/plot_test_files/ssn_png_func.png","rb") as fb:
+        with open("plot_test_files/ssn_png_func.png","rb") as fb:
             pfssn = base64.b64encode(fb.read()).decode()
         assert pfssn == ssn
 

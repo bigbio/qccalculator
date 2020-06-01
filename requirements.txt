@@ -8,3 +8,5 @@ pyopenms
 requests
 toposort
 requests
+pytest
+rpy2
