@@ -9,7 +9,7 @@ from os.path import basename
 from statistics import mean, median, stdev
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
-from QCCalculator import utils, noiseqc
+from qccalculator import utils, noiseqc
 
 import numpy as np
 import pandas
@@ -40,8 +40,8 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuali
     Returns
     -------
     mzqc.RunQuality
-        A RunQuality object containing the list of metrics calculated and metadata collected, ready for integration into a mzQC file object. 
-    """    
+        A RunQuality object containing the list of metrics calculated and metadata collected, ready for integration into a mzQC file object.
+    """
     metrics: List[mzqc.QualityMetric] = list()
     if exp.getExperimentalSettings().getSourceFiles():
         parent_base_name: str = basename(exp.getExperimentalSettings().getSourceFiles()[0].getNameOfFile())
@@ -59,27 +59,27 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuali
 
     meta: mzqc.MetaDataParameters = mzqc.MetaDataParameters(
         inputFiles=[
-            mzqc.InputFile(name=base_name,location=input_loc, 
-                        fileFormat=mzqc.CvParameter("MS", "MS:1000584", "mzML format"), 
+            mzqc.InputFile(name=base_name,location=input_loc,
+                        fileFormat=mzqc.CvParameter("MS", "MS:1000584", "mzML format"),
                         fileProperties=[
-                            mzqc.CvParameter(cvRef="MS", 
-                                accession="MS:1000747", 
-                                name="completion time", 
+                            mzqc.CvParameter(cvRef="MS",
+                                accession="MS:1000747",
+                                name="completion time",
                                 value=cmpltn
                             ),
-                            mzqc.CvParameter(cvRef="MS", 
-                                accession="MS:1000569", 
-                                name="SHA-256", 
+                            mzqc.CvParameter(cvRef="MS",
+                                accession="MS:1000569",
+                                name="SHA-256",
                                 value=chksm
                             ),
-                            mzqc.CvParameter(cvRef="MS", 
-                                accession="MS:1000031", 
-                                name="instrument model", 
+                            mzqc.CvParameter(cvRef="MS",
+                                accession="MS:1000031",
+                                name="instrument model",
                                 value=exp.getInstrument().getName()
                             ),
-                            mzqc.CvParameter(cvRef="MS", 
-                                accession="MS:1000529", 
-                                name="instrument serial number", 
+                            mzqc.CvParameter(cvRef="MS",
+                                accession="MS:1000529",
+                                name="instrument serial number",
                                 value=instr_srl
                             )
                             # TODO integrate parent location and checksum
@@ -87,14 +87,14 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuali
                             # fitting checksum cv missing
                         ]
             )
-        ], 
+        ],
         analysisSoftware=[
             mzqc.AnalysisSoftware(cvRef="MS", accession="MS:1000752", name="TOPP software", version=oms.__version__, uri="openms.de")
         ]
     )
 
     # this is mighty important to sort by RT
-    exp.sortSpectra()  
+    exp.sortSpectra()
 
     min_mz: float = sys.maxsize
     max_mz: float = 0
@@ -116,7 +116,7 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuali
     last_surveyscan_index:int = 0
     for spin, spec in enumerate(exp):
         mslevelcounts[spec.getMSLevel()] += 1
-        
+
         iontraptime = utils.getTrapTime(spec)
         intens_max = spec.get_peaks()[1].max()
         intens_min = spec.get_peaks()[1].min()
@@ -137,7 +137,7 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuali
 
             tic_tab['RT'].append(spec.getRT())
             tic_tab['int'].append(intens_sum)
-            
+
         if (spec.getMSLevel() == 2):
             if (spec.getPrecursors()[0].getMZ() < min_mz):
                 min_mz = spec.getPrecursors()[0].getMZ()
@@ -166,15 +166,15 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuali
             else:
                 precursor_err = np.nan
                 precursor_int = np.nan
-                
+
             tandem_spectrum_metrics_MS2['RT'].append(spec.getRT())
             tandem_spectrum_metrics_MS2['precursor_intensity'].append(precursor_int)  # TODO different from mzid->mzml getPrecursors[0].getIntensity() ? YES, latter one usually zero
             tandem_spectrum_metrics_MS2['precursor_error'].append(precursor_err)
             tandem_spectrum_metrics_MS2['precursor_mz'].append(spec.getPrecursors()[0].getMZ())
             tandem_spectrum_metrics_MS2['precursor_c'].append(spec.getPrecursors()[0].getCharge())
 
-            tandem_spectrum_metrics_MS2['surveyscan_intensity_sum'].append(last_surveyscan_intensity)            
-            tandem_spectrum_metrics_MS2['surveyscan_intensity_max'].append(last_surveyscan_max)   
+            tandem_spectrum_metrics_MS2['surveyscan_intensity_sum'].append(last_surveyscan_intensity)
+            tandem_spectrum_metrics_MS2['surveyscan_intensity_max'].append(last_surveyscan_max)
 
             isolation_window_metrics['RT'].append(spec.getRT())
             isolation_window_metrics['isolation_target'].append(spec.getPrecursors()[0].getMZ())  # https://github.com/OpenMS/OpenMS/blob/d17cc251fd0c4068eb253b03c9fb107897771fdc/src/openms/source/FORMAT/HANDLERS/MzMLHandler.cpp#L1992
@@ -185,19 +185,19 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuali
 
             s = np.array([(i.getMZ(),i.getIntensity()) for i in exp[last_surveyscan_index]], ndmin = 2)
             s = s[np.where(np.logical_and(s[:, 0]>=lower, s[:, 0]<=upper))[0]]
-            isolation_window_metrics['peaks_in_window'].append(np.shape(s)[0]) 
-            
+            isolation_window_metrics['peaks_in_window'].append(np.shape(s)[0])
+
             int_sort_desc = np.flip(np.argsort(s[:,1]))
             if np.shape(s)[0] > 1:
                 isolation_window_metrics['int_ratio_ranked_peaks_in_window'].append(
                     s[int_sort_desc][:-1,1]/s[int_sort_desc][1:,1][0])  # intensity ratio between top1&2, 2&3, ...
             else:
                 isolation_window_metrics['int_ratio_ranked_peaks_in_window'].append(0)  # bigger is better, though best is 0
-            
+
             isolation_window_metrics['summed_window_intensity'].append(np.sum(s[int_sort_desc][:,1]))
             isolation_window_metrics['isolation_target_intensity'].append(spec.getPrecursors()[0].getIntensity())
 
-            # TODO this needs to go outside            
+            # TODO this needs to go outside
             tol = 0.5
             if spec.metaValueExists('filter string'):
                 if 'FTMS' in spec.getMetaValue('filter string'):
@@ -211,86 +211,86 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuali
             unfragmented = np.any([np.isclose(i[0],[x.getMZ() for x in spec], atol=tol) for i in s])
             isolation_window_metrics['peaks_in_window_in_ms2'].append(str(unfragmented))
 
-    ## Spectra detail numbers 
+    ## Spectra detail numbers
     metrics.append(
-        mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
-                name="Spectrum acquisition metric values - MS1", 
+        mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
+                name="Spectrum acquisition metric values - MS1",
                 value=spectrum_acquisition_metrics_MS1)
     )
     metrics.append(
-        mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
-                name="Spectrum acquisition metric values - MS2", 
+        mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
+                name="Spectrum acquisition metric values - MS2",
                 value=spectrum_acquisition_metrics_MS2)
     )
     metrics.append(
-        mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
-                name="Spectra topn ranks", 
+        mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
+                name="Spectra topn ranks",
                 value=spectrum_topn)
     )
     metrics.append(
-        mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
-                name="Tandem spectrum metric values - MS2", 
+        mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
+                name="Tandem spectrum metric values - MS2",
                 value=tandem_spectrum_metrics_MS2)
     )
     metrics.append(
-        mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
-                name="Trap metric values - MS1", 
+        mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
+                name="Trap metric values - MS1",
                 value=trap_metrics_MS1)
     )
     metrics.append(
-        mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
-                name="Trap metric values - MS2", 
+        mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
+                name="Trap metric values - MS2",
                 value=trap_metrics_MS2)
     )
     metrics.append(
-        mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
-                name="isolation window metrics", 
+        mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
+                name="isolation window metrics",
                 value=isolation_window_metrics)
     )
 
     ## Spectra numbers
     for levels in mslevelcounts.keys():
         metrics.append(
-            mzqc.QualityMetric(cvRef="QC", 
-                    accession="QC:0000000", 
-                    name="Number of MS{l} spectra".format(l=str(levels)), 
+            mzqc.QualityMetric(cvRef="QC",
+                    accession="QC:0000000",
+                    name="Number of MS{l} spectra".format(l=str(levels)),
                     value=mslevelcounts[levels])
         )
 
     metrics.append(
-        mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
-                name="Number of chromatograms", 
+        mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
+                name="Number of chromatograms",
                 value=len(exp.getChromatograms()))
     )
 
     ## Ranges
     metrics.append(
-        mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
-                name="MZ aquisition range", 
+        mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
+                name="MZ aquisition range",
                 value=[min_mz,max_mz])
     )
 
     metrics.append(
-        mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
-                name="RT aquisition range", 
+        mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
+                name="RT aquisition range",
                 value=[exp[0].getRT(),exp[exp.size()-1].getRT()])
     )
 
     # TIC
     metrics.append(
-        mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
-                name="Total ion current", 
+        mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
+                name="Total ion current",
                 value=tic_tab)
     )
 
@@ -305,9 +305,9 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool=False) -> mzqc.RunQuali
         break
 
     metrics.append(
-        mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
-                name="Chromatogram", 
+        mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
+                name="Chromatogram",
                 value=chrom_tab)
     )
     # TODO is there a difference between TIC as defined in MS:1000235 and the chromatogram you get from TRP?? In MZML it says its a MS:1000235 (ion current detected in each of a series of mass spectra) but is it?
@@ -318,8 +318,8 @@ def describeMSCollectionTime(trap_metrics:mzqc.QualityMetric, ms_level: int) -> 
     """
     describeMSCollectionTime calculates the descriptive statistics metrics for ion collection times of spectra from a given level.
 
-    From the proto-metrics on ion collection for a given MS level, the function calculates descriptive statistics metrics for 
-    the distribution of ion collection times from all involved mass spectra. 
+    From the proto-metrics on ion collection for a given MS level, the function calculates descriptive statistics metrics for
+    the distribution of ion collection times from all involved mass spectra.
     Namely, mean, standard deviation, Quartiles, and 1.5*IQR outliers.
 
     Parameters
@@ -332,44 +332,44 @@ def describeMSCollectionTime(trap_metrics:mzqc.QualityMetric, ms_level: int) -> 
     Returns
     -------
     List[mzqc.QualityMetric]
-        The list of metrics 
-    """    
-    metrics: List[mzqc.QualityMetric] = list() 
+        The list of metrics
+    """
+    metrics: List[mzqc.QualityMetric] = list()
     arr = np.array(trap_metrics['traptime'])
     q1, q2, q3, s, m, ol = utils.extractDistributionStats(arr)
 
     metrics.append(
-        mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
-                name="Q1, Q2, Q3 for MS level {ms_level} trap time collection".format(ms_level=ms_level), 
+        mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
+                name="Q1, Q2, Q3 for MS level {ms_level} trap time collection".format(ms_level=ms_level),
                 value=[q1, q2, q3])
     )
 
-    metrics.append(mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
+    metrics.append(mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
                 name="Sigma for MS level {ms_level} trap time collection".format(ms_level=ms_level),
                 value=s)
     )
 
-    metrics.append(mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
+    metrics.append(mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
                 name="Mean of frequency for MS level {ms_level} collection".format(ms_level=ms_level),
                 value=m)
     )
 
-    metrics.append(mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
+    metrics.append(mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
                 name="Frequency for MS level {ms_level} collection +/-1.5*IQR outlier".format(ms_level=ms_level),
                 value=ol)
     )
-    
+
     return metrics
 
 def getESIstability(ion_intensity_metric:mzqc.QualityMetric) -> List[mzqc.QualityMetric]:
     """
     getESIstability calculates the count of signal jumps and falls during the course of a mass-spectrometry run's acquisition time.
 
-    Counts the number of signal jumps/falls of at least 10-fold magnitude.  
+    Counts the number of signal jumps/falls of at least 10-fold magnitude.
 
     Parameters
     ----------
@@ -380,24 +380,24 @@ def getESIstability(ion_intensity_metric:mzqc.QualityMetric) -> List[mzqc.Qualit
     -------
     List[mzqc.QualityMetric]
         List of resulting QualityMetrics
-    """    
-    metrics: List[mzqc.QualityMetric] = list() 
+    """
+    metrics: List[mzqc.QualityMetric] = list()
 
     folds = np.true_divide(ion_intensity_metric.value['int'][:-1],ion_intensity_metric.value['int'][1:])
     jumps = len(np.where(folds > 10)[0])
     falls = len(np.where(folds < 1/10)[0])
 
     metrics.append(
-        mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
-                name="signal jump (10x) count", 
+        mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
+                name="signal jump (10x) count",
                 value=jumps)
     )
 
     metrics.append(
-        mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
-                name="signal fall (10x) count", 
+        mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
+                name="signal fall (10x) count",
                 value=falls)
     )
     return metrics
@@ -406,16 +406,16 @@ def describeMSfrequency(spectrum_acquisition_metrics_MS:mzqc.QualityMetric, star
     """
     describeMSfrequency calculates the descriptive statistics metrics for spectra acquisition from a given level.
 
-    From the proto-metrics on spectrum acquisition for a given MS level, the function calculates descriptive statistics metrics for 
-    the distribution of spectra acquisition frequency from all involved mass spectra. 
+    From the proto-metrics on spectrum acquisition for a given MS level, the function calculates descriptive statistics metrics for
+    the distribution of spectra acquisition frequency from all involved mass spectra.
     Namely, min and max, mean, standard deviation, Quartiles, and 1.5*IQR outliers.
 
     Parameters
     ----------
     spectrum_acquisition_metrics_MS : mzqc.QualityMetric
-        Proto-metric containing 'RT' values for all involved spectra 
+        Proto-metric containing 'RT' values for all involved spectra
     start_time : datetime.datetime
-        MS run start time 
+        MS run start time
     ms_level : int
         The MS level considered to produce the right QC metric accession
 
@@ -423,45 +423,45 @@ def describeMSfrequency(spectrum_acquisition_metrics_MS:mzqc.QualityMetric, star
     -------
     List[mzqc.QualityMetric]
         List of resulting QualityMetrics
-    """    
-    metrics: List[mzqc.QualityMetric] = list() 
-    
+    """
+    metrics: List[mzqc.QualityMetric] = list()
+
     rts = [start_time + datetime.timedelta(seconds=i) for i in spectrum_acquisition_metrics_MS.value['RT']]
     arr = np.array([len(list(g)) for k, g in itertools.groupby(rts, key=lambda d: d.minute)])
     q1, q2, q3, s, m, ol = utils.extractDistributionStats(arr)
 
-    metrics.append(mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
-                name="fastest frequency for MS level {ms_level} collection".format(ms_level=ms_level), 
+    metrics.append(mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
+                name="fastest frequency for MS level {ms_level} collection".format(ms_level=ms_level),
                 value=max(arr))
     )
 
-    metrics.append(mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
-                name="slowest frequency for MS level {ms_level} collection".format(ms_level=ms_level), 
+    metrics.append(mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
+                name="slowest frequency for MS level {ms_level} collection".format(ms_level=ms_level),
                 value=min(arr))
     )
 
-    metrics.append(mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
-                name="Q1, Q2, Q3 of frequency for MS level {ms_level} collection".format(ms_level=ms_level), 
+    metrics.append(mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
+                name="Q1, Q2, Q3 of frequency for MS level {ms_level} collection".format(ms_level=ms_level),
                 value=[q1, q2, q3])
     )
 
-    metrics.append(mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
+    metrics.append(mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
                 name="Sigma of frequency for MS level {ms_level} collection".format(ms_level=ms_level),
                 value=s)
     )
 
-    metrics.append(mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
+    metrics.append(mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
                 name="Mean of frequency for MS level {ms_level} collection".format(ms_level=ms_level),
                 value=m)
     )
 
-    metrics.append(mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
+    metrics.append(mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
                 name="Frequency for MS level {ms_level} collection +/-1.5*IQR outlier".format(ms_level=ms_level),
                 value=ol)
     )
@@ -472,16 +472,16 @@ def describeMSdensity(spectrum_acquisition_metrics_MS:mzqc.QualityMetric, start_
     """
     describeMSdensity calculates the descriptive statistics metrics for spectra's peak density from a given level.
 
-    From the proto-metrics on spectrum acquisition for a given MS level, the function calculates descriptive statistics metrics for 
-    the distribution of peak density from all involved mass spectra. 
+    From the proto-metrics on spectrum acquisition for a given MS level, the function calculates descriptive statistics metrics for
+    the distribution of peak density from all involved mass spectra.
     Namely, mean, standard deviation, Quartiles, and 1.5*IQR outliers.
 
     Parameters
     ----------
     spectrum_acquisition_metrics_MS : mzqc.QualityMetric
-        Proto-metric containing 'RT' and 'peakcount' values for all involved spectra 
+        Proto-metric containing 'RT' and 'peakcount' values for all involved spectra
     start_time : datetime.datetime
-        MS run start time 
+        MS run start time
     ms_level : int
         The MS level considered to produce the right QC metric accession
 
@@ -489,34 +489,34 @@ def describeMSdensity(spectrum_acquisition_metrics_MS:mzqc.QualityMetric, start_
     -------
     List[mzqc.QualityMetric]
         List of resulting QualityMetrics
-    """    
-    metrics: List[mzqc.QualityMetric] = list() 
+    """
+    metrics: List[mzqc.QualityMetric] = list()
 
     rts = [start_time + datetime.timedelta(seconds=i) for i in spectrum_acquisition_metrics_MS.value['RT']]
     arr = np.array(spectrum_acquisition_metrics_MS.value['peakcount'])
     q1, q2, q3, s, m, ol = utils.extractDistributionStats(arr)
 
     metrics.append(
-        mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
-                name="Q1, Q2, Q3 of peak density for MS level {ms_level} collection".format(ms_level=ms_level), 
+        mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
+                name="Q1, Q2, Q3 of peak density for MS level {ms_level} collection".format(ms_level=ms_level),
                 value=[q1, q2, q3])
     )
 
-    metrics.append(mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
+    metrics.append(mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
                 name="Sigma of peak density for MS level {ms_level} collection".format(ms_level=ms_level),
                 value=s)
     )
 
-    metrics.append(mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
+    metrics.append(mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
                 name="Mean of peak density for MS level {ms_level} collection".format(ms_level=ms_level),
                 value=m)
     )
 
-    metrics.append(mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
+    metrics.append(mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
                 name="Peak density for MS level {ms_level} collection +/-1.5*IQR outlier".format(ms_level=ms_level),
                 value=ol)
     )
@@ -538,24 +538,24 @@ def getAnalysedSignalMetrics(tandem_spectrum_metrics_MS2:mzqc.QualityMetric) -> 
     -------
     List[mzqc.QualityMetric]
         List of resulting QualityMetrics
-    """    
-    metrics: List[mzqc.QualityMetric] = list() 
+    """
+    metrics: List[mzqc.QualityMetric] = list()
 
     # Fraction of total MS2 scans identified in the first quartile of peptides sorted by MS1 intensity (sum)
-    np_prec = np.array([tandem_spectrum_metrics_MS2.value['RT'], 
-                        tandem_spectrum_metrics_MS2.value['precursor_mz'], 
-                        tandem_spectrum_metrics_MS2.value['precursor_intensity'], 
-                        tandem_spectrum_metrics_MS2.value['surveyscan_intensity_sum'], 
+    np_prec = np.array([tandem_spectrum_metrics_MS2.value['RT'],
+                        tandem_spectrum_metrics_MS2.value['precursor_mz'],
+                        tandem_spectrum_metrics_MS2.value['precursor_intensity'],
+                        tandem_spectrum_metrics_MS2.value['surveyscan_intensity_sum'],
                         tandem_spectrum_metrics_MS2.value['surveyscan_intensity_max']])
 
 
-    # DS-3B reimpl.: median( (surv max / prec int) for bottom 50% of all precursors ) 
+    # DS-3B reimpl.: median( (surv max / prec int) for bottom 50% of all precursors )
     np_prec = np_prec[:,np_prec[4].argsort()]
-    # Ratio of MS1 maximum to MS1 value at sampling for bottom 50% of analytes by MS1 maximum intensity (1 = sampled at peak maxima)    
+    # Ratio of MS1 maximum to MS1 value at sampling for bottom 50% of analytes by MS1 maximum intensity (1 = sampled at peak maxima)
     bottom_sampled_prec = np_prec[:,np_prec[4]<np.median(np_prec[4])]
-    metrics.append(mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
-                name="Median ratio of max survey scan intensity over sampled precursor intensity for the bottom (by MS1 max) half of MS2", 
+    metrics.append(mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
+                name="Median ratio of max survey scan intensity over sampled precursor intensity for the bottom (by MS1 max) half of MS2",
                 value=np.median(bottom_sampled_prec[4] / bottom_sampled_prec[2]))
     )
 
@@ -565,7 +565,7 @@ def describePrecursorIntensity(tandem_spectrum_metrics_MS2:mzqc.QualityMetric) -
     """
     describePrecursorIntensity calculates the descriptive statistics metrics for spectra's peak density from a given level.
 
-    From the proto-metrics on tandem spectra, the function calculates descriptive statistics metrics for 
+    From the proto-metrics on tandem spectra, the function calculates descriptive statistics metrics for
     the distribution of precursor intensity. Namely, mean, standard deviation, Quartiles, and 1.5*IQR outliers.
 
     Parameters
@@ -577,44 +577,44 @@ def describePrecursorIntensity(tandem_spectrum_metrics_MS2:mzqc.QualityMetric) -
     -------
     List[mzqc.QualityMetric]
         List of resulting QualityMetrics
-    """    
-    metrics: List[mzqc.QualityMetric] = list() 
-    
+    """
+    metrics: List[mzqc.QualityMetric] = list()
+
     arr = np.array(tandem_spectrum_metrics_MS2.value['precursor_intensity'])
     q1, q2, q3, s, m, ol = utils.extractDistributionStats(arr)
 
-    metrics.append(mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
-                name="Maximum precursor intensity", 
+    metrics.append(mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
+                name="Maximum precursor intensity",
                 value=max(arr))
     )
 
-    metrics.append(mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
-                name="Minmum precursor intensity", 
+    metrics.append(mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
+                name="Minmum precursor intensity",
                 value=min(arr))
     )
 
-    metrics.append(mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
-                name="Q1, Q2, Q3 of precursor intensities", 
+    metrics.append(mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
+                name="Q1, Q2, Q3 of precursor intensities",
                 value=[q1, q2, q3])
     )
 
-    metrics.append(mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
+    metrics.append(mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
                 name="Sigma of precursor intensities",
                 value=s)
     )
 
-    metrics.append(mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
+    metrics.append(mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
                 name="Mean of precursor intensities",
                 value=m)
     )
 
-    metrics.append(mzqc.QualityMetric(cvRef="QC", 
-                accession="QC:0000000", 
+    metrics.append(mzqc.QualityMetric(cvRef="QC",
+                accession="QC:0000000",
                 name="Precursor intensity +/-1.5*IQR outlier",
                 value=ol)
     )

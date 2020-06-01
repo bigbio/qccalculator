@@ -1,6 +1,6 @@
 import pytest
 from MZQC import MZQCFile as mzqc
-from QCCalculator.qcplots import *
+from qccalculator.qcplots import *
 
 import tempfile
 import datetime
@@ -58,7 +58,7 @@ class TestPlotFunctionality:
     def test_topn_png(self):
         metric = list(filter(lambda x: x.name.startswith("Spectrum acquisition metric values"), rq.qualityMetrics))
         assert len(metric) == 2
-        
+
         topn = plot_topn(metric[1], metric[0])
         # with open("tests/plot_test_files/topn_png_func.png","wb") as fb:
         #     fb.write(base64.decodebytes(topn.encode()))
@@ -100,7 +100,7 @@ class TestPlotFunctionality:
             cmp_r = base64.b64encode(fb.read()).decode()
         assert cmp_r == idmap
 
-    def test_dppm_png(self): 
+    def test_dppm_png(self):
         metric = list(filter(lambda x: x.name=="Identifications accuracy metric values", rq.qualityMetrics))
         assert len(metric) == 1
         dppm = plot_dppm(metric[0])
@@ -110,7 +110,7 @@ class TestPlotFunctionality:
             cmp_r = base64.b64encode(fb.read()).decode()
         assert cmp_r == dppm
 
-    def test_dppm_over_time_png(self): 
+    def test_dppm_over_time_png(self):
         metric = list(filter(lambda x: x.name=="Identifications accuracy metric values", rq.qualityMetrics))
         assert len(metric) == 1
         dppm_ot = plot_dppm_over_time(metric[0])
@@ -170,7 +170,7 @@ class TestPlotFunctionality:
                 + list(filter(lambda x: x.name=="Tandem spectrum metric values - MS2", rq.qualityMetrics))\
                 + list(filter(lambda x: x.name=="Identifications accuracy metric values", rq.qualityMetrics))
         assert len(metric) == 4
-        
+
         ev = plot_events(metric[0], metric[1], metric[2], metric[3])
         # with open("tests/plot_test_files/_ev_png_func.png","wb") as fb:
         #     fb.write(base64.decodebytes(ev.encode()))

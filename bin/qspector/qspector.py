@@ -4,11 +4,11 @@ import datetime
 import json
 import os
 
-from QCCalculator import qcplots
+from qccalculator import qcplots
 
 PORT = 5000
 
-# https://stackoverflow.com/questions/20646822/how-to-serve-static-files-in-flask 
+# https://stackoverflow.com/questions/20646822/how-to-serve-static-files-in-flask
 app = Flask(__name__, template_folder='serving_static', static_url_path='/lib', static_folder='lib')
 #TODO this needs parameterisation in-line with handle_plot_format
 

@@ -12,18 +12,18 @@ import pronto
 from Bio import SeqIO, SeqRecord
 
 """
-Utility functions that do not contribute directly to QC calculations 
+Utility functions that do not contribute directly to QC calculations
 """
 
 def sha256fromfile(abs_file_path: str) -> str:
     """
     sha256fromfile will create a sha256 digest from the file at given path.
 
-    To preserve memory and speed up the digest, 
+    To preserve memory and speed up the digest,
     the file is digested with the help of a memoryview and hashlib.sha256().update.
 
-    :raises 
-    
+    :raises
+
     Parameters
     ----------
     abs_file_path : str
@@ -33,16 +33,16 @@ def sha256fromfile(abs_file_path: str) -> str:
     -------
     str
         The cast or unchanged argument
-    
+
     Raises
     ------
-    FileNotFoundError 
+    FileNotFoundError
         If abs_file_path is not a file
     """
     sha  = hashlib.sha256()
     b  = bytearray(128*1024)
     mv = memoryview(b)
-    
+
     with open(abs_file_path, 'rb', buffering=0) as f:
         for n in iter(lambda : f.readinto(mv), 0):
             sha.update(mv[:n])
@@ -51,8 +51,8 @@ def sha256fromfile(abs_file_path: str) -> str:
 def cast_if_int(pot_int: Any) -> Union[int,Any]:
     """
     cast_if_int convenience function to cast to int
-    
-    Due to the frequent use of numpy.dtypes and pyOpenMS return of binary encode strings, 
+
+    Due to the frequent use of numpy.dtypes and pyOpenMS return of binary encode strings,
     this function will ease the level of verbosity.
 
     Parameters
@@ -74,8 +74,8 @@ def spec_native_id(spec: oms.MSSpectrum) -> Union[int,None]:
     """
     spec_native_id convenience function to retrieve the native id number from a spectrum
 
-    Since the spectrums native id is a string formatted with much additional, albeit 
-    usually redundant information, this method cuts through the clutter and extracts 
+    Since the spectrums native id is a string formatted with much additional, albeit
+    usually redundant information, this method cuts through the clutter and extracts
     the numerical id.
 
     Parameters
@@ -101,11 +101,11 @@ def spec_native_id(spec: oms.MSSpectrum) -> Union[int,None]:
 def pep_native_id(p: oms.Peptide) -> Union[int,None]:
     """
     pep_native_id convenience function to retrieve the native id number from an identification
-    
+
     Counterpart to spec_native_id.
-    Identifications loaded from mzid et al. should carry the native id to which spectra they 
-    carry the identification information (as 'spectrum_reference'). Since the spectrums 
-    native id is a string formatted with much additional, albeit usually redundant 
+    Identifications loaded from mzid et al. should carry the native id to which spectra they
+    carry the identification information (as 'spectrum_reference'). Since the spectrums
+    native id is a string formatted with much additional, albeit usually redundant
     information, this method cuts through the clutter and extracts the numerical id.
 
     Parameters
@@ -132,7 +132,7 @@ def getMassDifference(theo_mz: float, exp_mz: float, use_ppm: bool=True)-> float
     """
     getMassDifference convenience function to easily switch the delta mass to either [ppm] or [Da] format.
 
-    Given two masses, the calculated result will be the delta mass, in [ppm] if requested. 
+    Given two masses, the calculated result will be the delta mass, in [ppm] if requested.
     The difference is **not** absolute.
 
     Parameters
@@ -159,16 +159,16 @@ def getTrapTime(spec: oms.MSSpectrum, acqusition_unavailable=False) -> float:
     getTrapTime for a given MSn spectrum, return the ion trap collection time applied during acquisition.
 
     The ion collection time, usually the same for spectra of one level from one
-    run is taken from the mzML file. The value is sourced from 'MS:1000927' but 
+    run is taken from the mzML file. The value is sourced from 'MS:1000927' but
     returned as a negative value if no cvTerm was available (not mandatory in mzML).
     This means in particular that MS1 spectra will all have negative values returned.
-    In case pyopenms < 2.5.0 , use the acqusition_unavailable flag 
-    and execute TrapTimeTool before QCCalculator execution.    
+    In case pyopenms < 2.5.0 , use the acqusition_unavailable flag
+    and execute TrapTimeTool before qccalculator execution.
 
     Parameters
     ----------
     spec : oms.MSSpectrum
-        Spectrum to get the trap time from 
+        Spectrum to get the trap time from
     acqusition_unavailable : bool, optional
         In case access to AcquisitionInfo through pyopenms is unavailable, by default False
 
@@ -176,11 +176,11 @@ def getTrapTime(spec: oms.MSSpectrum, acqusition_unavailable=False) -> float:
     -------
     float
         Ion trap collection time in [ms] for given MSn
-    """    
+    """
     tt = -1.0
     if acqusition_unavailable:
         if spec.metaValueExists('MS:1000927'):
-            tt = spec.getMetaValue('MS:1000927')        
+            tt = spec.getMetaValue('MS:1000927')
     else:
         if not spec.getAcquisitionInfo():
             for j in spec.getAcquisitionInfo():
@@ -204,11 +204,11 @@ def extractDistributionStats(value_array: np.array) -> Tuple:
     -------
     Tuple
         In order the values Q1, Q2, Q3, sigma, mean, outliers
-    """    
+    """
     q1, q2, q3 = np.quantile(value_array, [.25,.5,.75])
     s=np.std(value_array)
     m=np.mean(value_array)
-    
+
     low_out = q1-(1.5*(q3-q1))
     high_out = q3+(1.5*(q3-q1))
     ol=np.extract((value_array<low_out) | (value_array>high_out), value_array)
@@ -216,13 +216,13 @@ def extractDistributionStats(value_array: np.array) -> Tuple:
 
 def getUniProtSequences(accessions: List[str]) -> Union[List[SeqRecord.SeqRecord],None]:
     """
-    getUniProtSequences retrieves the 
+    getUniProtSequences retrieves the
 
     The function will formulate a query to uniprot and parse the result into a list of Bio.SeqRecord s.
-    
-    No check on the completeness of the result is done here. 
+
+    No check on the completeness of the result is done here.
     --------------------------------------------------------
-    However, no isoforms are reported. So the number of SeqRecord s should be equal to the number of 
+    However, no isoforms are reported. So the number of SeqRecord s should be equal to the number of
     accessions queried initially.
 
     Parameters
@@ -234,9 +234,9 @@ def getUniProtSequences(accessions: List[str]) -> Union[List[SeqRecord.SeqRecord
     -------
     Union[List[SeqRecord.SeqRecord],None]
         The resulting list of SeqRecord accessions
-    
+
     # https://docs.python.org/3/library/xml.etree.elementtree.html#pull-api-for-non-blocking-parsing
-    """    
+    """
     acc = '+OR+'.join(['id:'+a for a in accessions])
     params = {"query": acc, "format": "fasta", "include": "no"}  # no isoforms
     response = requests.get("https://www.uniprot.org/uniprot/", params=params, verify=False)  # ugh, https certificate verification does not work OOTB with uniprot.org
@@ -245,14 +245,14 @@ def getUniProtSequences(accessions: List[str]) -> Union[List[SeqRecord.SeqRecord
         warnings.warn("UniProt query for sequences unsuccessful.")
         return None
     seqs = [s for s in SeqIO.parse(StringIO(response.text),format='fasta')]
-    
+
     return seqs
 
 def obtainOntology(url: str) -> pronto.Ontology:
     """
-    obtainOntology provides pronto ontology objects and handles aspects of provision 
+    obtainOntology provides pronto ontology objects and handles aspects of provision
 
-    An ontology can be requested by URL or common names which draws the latest available 
+    An ontology can be requested by URL or common names which draws the latest available
     version of the respective ontology. Available are 'psi-ms', 'psi-qc', 'units', 'pride', 'MS', 'QC', 'UO'.
 
     Parameters
@@ -264,7 +264,7 @@ def obtainOntology(url: str) -> pronto.Ontology:
     -------
     pronto.Ontology
         pronto ontology
-            
+
     Raises
     ------
     poof
@@ -274,11 +274,11 @@ def obtainOntology(url: str) -> pronto.Ontology:
                     "psi-qc": "https://raw.githubusercontent.com/HUPO-PSI/mzQC/master/cv/qc-cv.obo",
                     "units": "http://purl.obolibrary.org/obo/uo.owl",
                     "pride": "http://purl.obolibrary.org/obo/pride_cv.obo"}
-    usual_suspects.update({"MS": usual_suspects["psi-ms"], 
+    usual_suspects.update({"MS": usual_suspects["psi-ms"],
                         "QC": usual_suspects["psi-qc"],
                         "UO": usual_suspects["units"]})
     # TODO move hardcoded urls to file
- 
+
     if url in usual_suspects:
         url = usual_suspects[url]
     try:

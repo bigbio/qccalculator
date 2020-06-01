@@ -14,7 +14,7 @@ before_script:
   # - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN dockerhub.ebi.ac.uk
   - CI_REGISTRY=dockerhub.ebi.ac.uk
   - CI_REGISTRY_IMAGE=$CI_REGISTRY/$CI_PROJECT_PATH
-  
+
 build:
   stage: build
   image:
@@ -36,7 +36,7 @@ test:
     name: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
     entrypoint: [""]
   script:
-    - QCCalculator
+    - qccalculator
 
 #deploy:
 #  stage: deploy
