@@ -372,7 +372,7 @@ def describeErrorRates(identification_accuracy_metrics:mzqc.QualityMetric) -> Li
 
     return metrics
 
-# TODO target decoy separation and FDR
+# TODO target decoy separation and FDR, correct name would be getSamplingRates not ratios
 def getSamplingRatios(identification_sequence_metrics:mzqc.QualityMetric) -> List[mzqc.QualityMetric]:
     """
     getSamplingRatios calculates the sampling ratio metric for identified tandem spectra.
