@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 import os
+from os.path import basename
+
 import click
 import logging
 from datetime import datetime
@@ -64,20 +66,20 @@ def start(output, zip):
 @click.argument('filename', type=click.Path(exists=True))
 @click.option('--mzid', type=click.Path(exists=True), help="If you have a corresponding mzid file you need to pass it, too. Mutually exclusive to idxml.")
 @click.option('--idxml', type=click.Path(exists=True), help="If you have a corresponding idxml file you need to pass it, too. Mutually exclusive to mzid.")
-def full(filename, mzid=None, idxml=None):
+@click.pass_context
+def full(ctx, filename, mzid=None, idxml=None):
     """Calculate all possible metrics for these files. These data sources will be included in set metrics."""
     exp = oms.MSExperiment()
     oms.MzMLFile().load(click.format_filename(filename), exp)
     rq = basicqc.getBasicQuality(exp)
 
     if idxml and mzid:
-        with click.Context(command) as ctx:
-            logging.warn("Sorry, you can only give one id file. Please choose one.")
-            click.echo(command.get_help(ctx))
-            return
+        logging.warn("Sorry, you can only give one id file. Please choose one.")
+        click.echo(ctx.get_help())
+        return
     elif not idxml and not mzid:
             logging.warn("Sorry, you must give one id file in this mode.")
-            click.echo(command.get_help(ctx))
+            click.echo(ctx.get_help())
             return
 
     ms2num = 0
@@ -111,7 +113,8 @@ def full(filename, mzid=None, idxml=None):
 @click.argument('filename', type=click.Path(exists=True))
 @click.option('--zipurl', type=click.Path(exists=True), required=True, help="The URL to a max quant output zip file (must contain evidence.txt and parameters.txt).")
 @click.option('--rawname', type=str, default="", help="The raw file name of interest (as in evidence.txt) without path or extension.")
-def maxq(filename, zipurl, rawname):
+@click.pass_context
+def maxq(ctx, filename, zipurl, rawname):
     """Calculate all possible metrics for these files. These data sources will be included in set metrics."""
     exp = oms.MSExperiment()
     oms.MzMLFile().load(click.format_filename(filename), exp)
@@ -130,7 +133,7 @@ def maxq(filename, zipurl, rawname):
         ms2num = 1
 
     try:
-        mq,params = idqcmq.loadMQZippedResults(mq_zip_url)
+        mq,params = idqcmq.loadMQZippedResults(zipurl)
         if not rawname:
             logging.warning("Infering rawname from mzML")
             rawname = basename(exp.getExperimentalSettings().getSourceFiles()[0].getNameOfFile().decode()) # TODO split extensions
