@@ -6,8 +6,8 @@ Includecmd: yes
     . /QCCalculator
         
 %post
-    pip install pandas requests
-    pip install pyopenms==2.3.* 
+    pip install pronto biopython pandas requests plotly-express toposort
+    pip install pyopenms==2.5.* 
     pip install -U git+https://github.com/bigbio/mzqc-pylib.git#egg=mzqc-pylib
     pip install -U /QCCalculator
 

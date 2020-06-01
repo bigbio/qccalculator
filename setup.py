@@ -5,16 +5,21 @@ with open("README.md", "r") as fh:
     
 setup(
     name='QCCalculator',
-    version='0.0.1',
+    version='0.0.2',
     packages=find_packages(),
     url='https://gitlab.ebi.ac.uk/walzer/qccalculator',
     description='Development for python driven QC calculation (QCCalculator) and presentation (QSpector)',
     long_description=long_description,
     install_requires=[
-        "rpy2",
+        "biopython",
+        "click",
         "mzqc-pylib",
-        "Click",
         "pandas",
+        "plotly-express",
+        "pronto",
+        "pyopenms",
+        "requests",
+        "toposort"
         ],
     include_package_data=True,
     #scripts=['bin/qspector/qspector.py'] ,

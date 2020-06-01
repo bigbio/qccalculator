@@ -2,7 +2,9 @@
 	"name": "MZQC Python Development container",
 	"dockerFile": "Dockerfile",
 	"context": "..",
-	"extensions": ["ms-python.python", "littlefoxteam.vscode-python-test-adapter", "ms-azuretools.vscode-docker", "hbenl.vscode-test-explorer"],
+	"extensions": ["ms-python.python", "littlefoxteam.vscode-python-test-adapter", 
+		"ms-azuretools.vscode-docker", "hbenl.vscode-test-explorer",
+		"njpwerner.autodocstring"],
 	"settings": {"python.pythonPath": "/usr/local/bin/python"},
 	"postCreateCommand": "sudo pip install -U -e .",
 	"runArgs": ["-u", "vscode", "-v", "/media/walzer/My Passport2/mzqc-stuff:/data"]

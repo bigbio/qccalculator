@@ -1,7 +1,5 @@
 FROM python:3.6.9-slim-buster
-#FROM python:3.6.5-slim-jessie
-#FROM python:2.7-slim-jessie
- 
+
 ENV DEBIAN_FRONTEND noninteractive 
  
 RUN apt-get update && apt-get install -y --no-install-recommends --no-install-suggests \ 
@@ -73,10 +71,11 @@ RUN Rscript -e "library('devtools'); install_github('twitter/AnomalyDetection')"
 
 RUN pip install pip --upgrade
 RUN pip install setuptools --upgrade
-RUN pip install numpy mypy pyopenms==2.3.*
-RUN pip install pronto pytest jupyter rpy2 biopython flask pandas requests
+RUN pip install numpy mypy jupyter rpy2 flask pytest
 RUN pip install --force-reinstall 'pytest<=5.0.1'
 RUN pip install -U git+https://github.com/bigbio/mzqc-pylib.git#egg=mzqc-pylib
+RUN pip install pronto biopython pandas requests plotly-express toposort click
+RUN pip install pyopenms==2.5.* 
 
 #RUN pip install -e .  # devcontainer.json: "postCreateCommand": "pip install -e ."
 
