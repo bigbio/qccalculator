@@ -12,3 +12,6 @@ src/
 MZQC\.egg-info/
 
 QCCalculator\.egg-info/
+
+build/
+dist/
