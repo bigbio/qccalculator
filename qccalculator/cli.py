@@ -10,7 +10,6 @@ from typing import List
 
 import pyopenms as oms
 from mzqc import MZQCFile as qc
-# from .qccalculator import getBasicQuality, getIDQuality
 from qccalculator import utils, basicqc, idqc, idqcmq, enzymeqc, masstraceqc
 
 rqs: List[qc.RunQuality] = list()

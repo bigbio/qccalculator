@@ -22,7 +22,6 @@ setup(
         "toposort"
         ],
     include_package_data=True,
-    #scripts=['bin/qspector/qspector.py'] ,
     entry_points={
         'console_scripts': ['qccalculator = qccalculator.cli:start']
       }
