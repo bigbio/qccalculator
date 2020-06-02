@@ -17,7 +17,7 @@ import re
 
 class TestReadMzQC:
   def test_read_mzqc(self):
-    with open("plot_test_files/test.mzqc", "r") as f:
+    with open("tests/plot_test_files/test.mzqc", "r") as f:
       tqc = mzqc.JsonSerialisable.FromJson(f.read())['mzQC']
       rq = tqc.runQualities[0]
       cmpltn = rq.metadata.inputFiles[0].fileProperties[0].value
