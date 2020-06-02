@@ -16,8 +16,6 @@ path = os.path.dirname(__file__)
 # * inf.fileProperties are quality metrics, not cv params
 # * runQualities is list of SetQuality
 
-
-
 class TestReadMzQC:
   def test_read_mzqc(self):
     with open(path + "/plot_test_files/test.mzqc", "r") as f:
