@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from mzqc import MZQCFile as mzqc
 from qccalculator.qcplots import *
@@ -7,6 +9,7 @@ import datetime
 import base64
 import re
 
+path = os.path.dirname(__file__)
 
 # TODO issues
 # * mzqc.JsonSerialisable.FromJson(f.read())['mzQC']
@@ -17,7 +20,7 @@ import re
 
 class TestReadMzQC:
   def test_read_mzqc(self):
-    with open("../tests/plot_test_files/test.mzqc", "r") as f:
+    with open(path + "/plot_test_files/test.mzqc", "r") as f:
       tqc = mzqc.JsonSerialisable.FromJson(f.read())['mzQC']
       rq = tqc.runQualities[0]
       cmpltn = rq.metadata.inputFiles[0].fileProperties[0].value
