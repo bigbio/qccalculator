@@ -1,0 +1,12 @@
+biopython
+click
+git+https://github.com/bigbio/mzqc-pylib.git#egg=mzqc-pylib
+pandas
+plotly-express
+pronto
+pyopenms
+requests
+toposort
+requests
+pytest
+
