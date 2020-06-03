@@ -29,7 +29,7 @@ def finale():
     else:
       with open(out, 'w') as fh:
         fh.write(qc.JsonSerialisable.ToJson(mzqc_assembly(rqs, sqs, out), readability=0))
-  logging.warn("Done. Thank you for choosing qccalculator!")
+  logging.warn("Done. Thank you for choosing QCCalculator!")
 
 
 def mzqc_assembly(rqs, sqs, out):
@@ -59,7 +59,7 @@ def start(output, zip):
        Multiple files input is possible (each after a "full/basic" COMMAND).
        All metrics of one qccalculator execution will be stored in on output file.
        If you need separate mzQC files, please execute separately.
-       For more information on the different COMMAND types, try qccalculator COMMAND --help"""
+       For more information on the different COMMAND types, try QCCalculator COMMAND --help"""
   logging.warn("Recieved output destination {}".format(output))
   global out
   out = output
@@ -172,4 +172,4 @@ def basic(filename):
 
 if __name__ == "__main__":
   start()
-# qccalculator --output cli-test.mzqc full --mzid tests/CPTAC_CompRef_00_iTRAQ_01_2Feb12_Cougar_11-10-09.mzid tests/CPTAC_CompRef_00_iTRAQ_01_2Feb12_Cougar_11-10-09.trfr.t3.mzML
+# QCCalculator --output cli-test.mzqc full --mzid tests/CPTAC_CompRef_00_iTRAQ_01_2Feb12_Cougar_11-10-09.mzid tests/CPTAC_CompRef_00_iTRAQ_01_2Feb12_Cougar_11-10-09.trfr.t3.mzML
