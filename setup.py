@@ -4,11 +4,11 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(
-    name='qccalculator',
+    name='QCCalculator',
     version='0.0.2',
     packages=find_packages(),
     url='https://gitlab.ebi.ac.uk/walzer/qccalculator',
-    description='Development for python driven QC calculation (qccalculator)',
+    description='Development for python driven QC calculation (QCCalculator)',
     long_description=long_description,
     install_requires=[
         "biopython",
@@ -23,6 +23,6 @@ setup(
         ],
     include_package_data=True,
     entry_points={
-        'console_scripts': ['qccalculator = qccalculator.cli:start']
+        'console_scripts': ['QCCalculator = qccalculator.cli:start']
       }
 )
