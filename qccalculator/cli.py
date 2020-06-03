@@ -57,7 +57,7 @@ def mzqc_assembly(rqs, sqs, out):
 def start(output, zip):
   """Calculate quality metrics for given files.
        Multiple files input is possible (each after a "full/basic" COMMAND).
-       All metrics of one qccalculator execution will be stored in on output file.
+       All metrics of one QCCalculator execution will be stored in on output file.
        If you need separate mzQC files, please execute separately.
        For more information on the different COMMAND types, try QCCalculator COMMAND --help"""
   logging.warn("Recieved output destination {}".format(output))
