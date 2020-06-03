@@ -8,7 +8,7 @@ setup(
     version='0.0.2',
     packages=find_packages(),
     url='https://gitlab.ebi.ac.uk/walzer/qccalculator',
-    description='Development for python driven QC calculation (qccalculator) and presentation (QSpector)',
+    description='Development for python driven QC calculation (qccalculator)',
     long_description=long_description,
     install_requires=[
         "biopython",
