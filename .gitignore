@@ -8,3 +8,4 @@ QCCalculator\.egg-info/
 *.egg*
 dist/
 bin/
+/.vscode/
