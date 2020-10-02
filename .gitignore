@@ -7,3 +7,4 @@ MZQC\.egg-info/
 QCCalculator\.egg-info/
 *.egg*
 dist/
+bin/
