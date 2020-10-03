@@ -8,8 +8,22 @@ Development for python driven QC calculation (QCCalculator). The tool support di
 
 Metrics are grouped into different categories:
 
-- Basic QC metrics
-- Identification QC metrics
+### Basic QC metrics
+
+- Spectrum_acquisition_metrics_MS1 (Spectrum acquisition metric values - MS1): RT, SN, peakcount, int
+- spectrum_acquisition_metrics_MS2 (Spectrum acquisition metric values - MS2): -""-
+- spectrum_topn (Spectra topn ranks): RT, rank
+- tandem_spectrum_metrics_MS2 (Tandem spectrum metric values - MS2): RT, precursor_int, surveyscan_int, precursor_err, precursor_mz, precursor_c, surveyscan_max
+- trap_metrics_MS1 (Trap metric values - MS1): RT, iontraptime
+- trap_metrics_MS2 (Trap metric values - MS2): RT, iontraptime
+- tic_tab (Total ion current chromatogram): RT, int
+
+### Identification QC metrics
+
+- Identifications accuracy metric values: RT, MZ, delta_ppm, abs_err
+- Identification scoring metric values: RT, c, score
+- Identifications sequence metric values: RT, peptide, target
+- Hydrophobicity metric values: RT, gravy
 
 ### Install
 

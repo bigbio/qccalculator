@@ -8,6 +8,12 @@ import utils
 class MyTestCase(unittest.TestCase):
 
   def test_mzmlqc(self):
+    """
+
+    Returns
+    -------
+
+    """
     exp = oms.MSExperiment()
     oms.MzMLFile().load("tests/files/example.mzML", exp)
     rq = basicqc.getBasicQuality(exp)
