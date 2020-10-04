@@ -9,3 +9,4 @@ QCCalculator\.egg-info/
 dist/
 bin/
 /.vscode/
+dist
