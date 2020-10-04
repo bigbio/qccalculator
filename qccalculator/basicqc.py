@@ -117,6 +117,9 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool = False) -> mzqc.RunQua
 
   intens_sum: np.float = 0
   last_surveyscan_index: int = 0
+  last_surveyscan_intensity = -1
+  last_surveyscan_max = -1
+
   for spin, spec in enumerate(exp):
     mslevelcounts[spec.getMSLevel()] += 1
 
@@ -124,6 +127,7 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool = False) -> mzqc.RunQua
     intens_max = spec.get_peaks()[1].max()
     intens_min = spec.get_peaks()[1].min()
     intens_sum = spec.get_peaks()[1].sum()
+
 
     if spec.getMSLevel() == 1:
       last_surveyscan_index = spin
@@ -181,8 +185,10 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool = False) -> mzqc.RunQua
       tandem_spectrum_metrics_MS2['precursor_mz'].append(spec.getPrecursors()[0].getMZ())
       tandem_spectrum_metrics_MS2['precursor_c'].append(spec.getPrecursors()[0].getCharge())
 
-      tandem_spectrum_metrics_MS2['surveyscan_intensity_sum'].append(last_surveyscan_intensity)
-      tandem_spectrum_metrics_MS2['surveyscan_intensity_max'].append(last_surveyscan_max)
+      if last_surveyscan_intensity != -1:
+        tandem_spectrum_metrics_MS2['surveyscan_intensity_sum'].append(last_surveyscan_intensity)
+      if last_surveyscan_max != -1:
+        tandem_spectrum_metrics_MS2['surveyscan_intensity_max'].append(last_surveyscan_max)
 
       isolation_window_metrics['RT'].append(spec.getRT())
       isolation_window_metrics['isolation_target'].append(spec.getPrecursors()[

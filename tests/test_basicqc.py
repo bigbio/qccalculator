@@ -89,7 +89,11 @@ class MyTestCase(unittest.TestCase):
 
     pros = list()
     peps = list()
+
     ms2num = 0
+    for x in rq.qualityMetrics:
+      if x.name == "Number of MS2 spectra":
+        ms2num = x.value
     oms.IdXMLFile().load("tests/files/MS2_spectra.idXML", pros, peps)
     rq.qualityMetrics.extend(idqc.getIDQuality(exp, pros, peps, ms2num))
 
