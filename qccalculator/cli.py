@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 import os
+from os.path import basename
+
 import click
 import logging
 from datetime import datetime
@@ -7,8 +9,8 @@ import gzip
 from typing import List
 
 import pyopenms as oms
+from click import command
 from mzqc import MZQCFile as qc
-# from .qccalculator import getBasicQuality, getIDQuality
 from qccalculator import utils, basicqc, idqc, idqcmq, enzymeqc, masstraceqc
 
 rqs: List[qc.RunQuality] = list()
@@ -130,7 +132,7 @@ def maxq(filename, zipurl, rawname):
         ms2num = 1
 
     try:
-        mq,params = idqcmq.loadMQZippedResults(mq_zip_url)
+        mq,params = idqcmq.loadMQZippedResults(zipurl)
         if not rawname:
             logging.warning("Infering rawname from mzML")
             rawname = basename(exp.getExperimentalSettings().getSourceFiles()[0].getNameOfFile().decode()) # TODO split extensions
