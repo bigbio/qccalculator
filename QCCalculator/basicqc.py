@@ -19,6 +19,7 @@ from Bio.SeqUtils import ProtParam
 from mzqc import MZQCFile as mzqc
 
 from qccalculator import utils
+from qccalculator import noiseqc
 
 """
 Basic set of methods to get quality metric calculations from peak and identification files under way
@@ -130,7 +131,6 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool = False) -> mzqc.RunQua
       last_surveyscan_max = intens_max
 
       spectrum_acquisition_metrics_MS1['RT'].append(spec.getRT())
-      import noiseqc
       spectrum_acquisition_metrics_MS1['SN'].append(noiseqc.getSN_medianmethod(spec))
       spectrum_acquisition_metrics_MS1['peakcount'].append(spec.size())
       spectrum_acquisition_metrics_MS1['int'].append(intens_sum.item())  # .item() for dtype to pytype

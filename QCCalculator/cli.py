@@ -9,7 +9,7 @@ from typing import List
 import pyopenms as oms
 from mzqc import MZQCFile as qc
 # from .qccalculator import getBasicQuality, getIDQuality
-from QCCalculator import utils, basicqc, idqc, idqcmq, enzymeqc, masstraceqc 
+from qccalculator import utils, basicqc, idqc, idqcmq, enzymeqc, masstraceqc
 
 rqs: List[qc.RunQuality] = list()
 sqs: List[qc.SetQuality] = list()
@@ -31,45 +31,45 @@ def finale():
 
 def mzqc_assembly(rqs, sqs, out):
     # TODO check all the metrics to see which ontologies were used
-    cv_qc = qc.ControlledVocabulary(ref="QC", 
+    cv_qc = qc.ControlledVocabulary(ref="QC",
         name="Proteomics Standards Initiative Quality Control Ontology",
         version="0.1.0", uri="https://github.com/HUPO-PSI/qcML-development/blob/master/cv/v0_1_0/qc-cv.obo")
-    cv_ms = qc.ControlledVocabulary(ref="MS", 
+    cv_ms = qc.ControlledVocabulary(ref="MS",
         name="Proteomics Standards Initiative Mass Spectrometry Ontology",
         version="4.1.7", uri="https://github.com/HUPO-PSI/psi-ms-CV/blob/master/psi-ms.obo")
 
-    return qc.MzQcFile(version="0.1.0", 
-                        creationDate=datetime.now().isoformat(), 
-                        runQualities=rqs, 
-                        setQualities=sqs, 
+    return qc.MzQcFile(version="0.1.0",
+                        creationDate=datetime.now().isoformat(),
+                        runQualities=rqs,
+                        setQualities=sqs,
                         controlledVocabularies=[cv_qc, cv_ms])
 
 @click.group(chain=True)
 @click.option('--output', required=True, type=click.Path(), default="/tmp/out.mzQC", help="The path and name of the desired output file.")
 @click.option('--zip/--no-zip', default=False, help="Apply gzip to the output. Appends '.gz' to the target filename and pretty formatting.")
 def start(output, zip):
-    """Calculate quality metrics for given files. 
+    """Calculate quality metrics for given files.
        Multiple files input is possible (each after a "full/basic" COMMAND).
-       All metrics of one QCCalculator execution will be stored in on output file. 
+       All metrics of one QCCalculator execution will be stored in on output file.
        If you need separate mzQC files, please execute separately.
        For more information on the different COMMAND types, try QCCalculator COMMAND --help"""
     logging.warn("Recieved output destination {}".format(output))
-    global out 
+    global out
     out = output
     if zip:
-        global zp 
+        global zp
         zp = True
 
 @start.command()
 @click.argument('filename', type=click.Path(exists=True))
 @click.option('--mzid', type=click.Path(exists=True), help="If you have a corresponding mzid file you need to pass it, too. Mutually exclusive to idxml.")
 @click.option('--idxml', type=click.Path(exists=True), help="If you have a corresponding idxml file you need to pass it, too. Mutually exclusive to mzid.")
-def full(filename, mzid=None, idxml=None): 
+def full(filename, mzid=None, idxml=None):
     """Calculate all possible metrics for these files. These data sources will be included in set metrics."""
     exp = oms.MSExperiment()
     oms.MzMLFile().load(click.format_filename(filename), exp)
-    rq = basicqc.getBasicQuality(exp)  
-    
+    rq = basicqc.getBasicQuality(exp)
+
     if idxml and mzid:
         with click.Context(command) as ctx:
             logging.warn("Sorry, you can only give one id file. Please choose one.")
@@ -93,7 +93,7 @@ def full(filename, mzid=None, idxml=None):
         ms2num = 1
 
     pros = list()
-    peps = list() 
+    peps = list()
     if mzid:
         oms_id = oms.MzIdentMLFile()
         idf = mzid
@@ -106,17 +106,17 @@ def full(filename, mzid=None, idxml=None):
     rqs.append(rq)
 
     finale()
-    
+
 @start.command()
 @click.argument('filename', type=click.Path(exists=True))
 @click.option('--zipurl', type=click.Path(exists=True), required=True, help="The URL to a max quant output zip file (must contain evidence.txt and parameters.txt).")
 @click.option('--rawname', type=str, default="", help="The raw file name of interest (as in evidence.txt) without path or extension.")
-def maxq(filename, zipurl, rawname): 
+def maxq(filename, zipurl, rawname):
     """Calculate all possible metrics for these files. These data sources will be included in set metrics."""
     exp = oms.MSExperiment()
     oms.MzMLFile().load(click.format_filename(filename), exp)
-    rq = basicqc.getBasicQuality(exp)  
-    
+    rq = basicqc.getBasicQuality(exp)
+
     ms2num = 0
     for x in rq.qualityMetrics:
         if x.name == "Number of MS2 spectra":
@@ -142,14 +142,14 @@ def maxq(filename, zipurl, rawname):
 
     finale()
 
-    
+
 @start.command()
 @click.argument('filename', type=click.Path(exists=True))
 def basic(filename):
     """Calculate the basic metrics available from virtually every mzML file."""
     exp = oms.MSExperiment()
     oms.MzMLFile().load(click.format_filename(filename), exp)
-    rq = basicqc.getBasicQuality(exp)  
+    rq = basicqc.getBasicQuality(exp)
     rqs.append(rq)
 
     finale()

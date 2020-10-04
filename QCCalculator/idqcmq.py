@@ -11,7 +11,7 @@ from Bio import SeqIO, SeqRecord
 from Bio.SeqUtils import ProtParam
 from mzqc import MZQCFile as mzqc
 
-from QCCalculator import utils
+from qccalculator import utils
 
 """
 Calculate id based metrics from MaxQuant result files

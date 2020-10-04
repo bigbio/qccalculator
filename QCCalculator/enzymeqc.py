@@ -11,7 +11,7 @@ from mzqc import MZQCFile as mzqc
 import pyopenms as oms
 import numpy as np
 
-from QCCalculator import utils
+from qccalculator import utils
 
 """
 Methods to calculate quality metrics related to digestion enzyme use during sample preparation and identification process

@@ -1,7 +1,7 @@
 import unittest
 import pyopenms as oms
 
-from QCCalculator import basicqc, idqc, utils
+from qccalculator import basicqc, utils, idqc
 
 
 class MyTestCase(unittest.TestCase):
@@ -92,8 +92,6 @@ class MyTestCase(unittest.TestCase):
     ms2num = 0
     oms.IdXMLFile().load("tests/files/MS2_spectra.idXML", pros, peps)
     rq.qualityMetrics.extend(idqc.getIDQuality(exp, pros, peps, ms2num))
-
-
 
 if __name__ == '__main__':
   unittest.main()
