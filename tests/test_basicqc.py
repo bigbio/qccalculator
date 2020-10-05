@@ -4,7 +4,7 @@ import pyopenms as oms
 from qccalculator import basicqc, utils, idqc
 
 
-class MyTestCase(unittest.TestCase):
+class BasicQcTest(unittest.TestCase):
 
   def test_mzmlqc(self):
     """
