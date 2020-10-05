@@ -7,4 +7,5 @@ requests
 toposort
 pytest
 setuptools
-mzqc-pylib
+git+https://github.com/bigbio/mzqc-pylib.git#egg=mzqc-pylib
+
