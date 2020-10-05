@@ -7,3 +7,4 @@ requests
 toposort
 pytest
 setuptools
+mzqc-pylib
