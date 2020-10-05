@@ -7,5 +7,5 @@ MZQC\.egg-info/
 *.egg*
 dist/
 bin/
-/.vscode/
+.vscode/
 build/
