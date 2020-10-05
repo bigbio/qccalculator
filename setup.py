@@ -19,7 +19,8 @@ setup(
         "pronto",
         "pyopenms",
         "requests",
-        "toposort"
+        "toposort",
+        "plotly"
         ],
     include_package_data=True,
     #scripts=['bin/qspector/qspector.py'] ,
