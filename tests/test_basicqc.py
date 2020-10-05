@@ -97,5 +97,9 @@ class MyTestCase(unittest.TestCase):
     oms.IdXMLFile().load("tests/files/MS2_spectra.idXML", pros, peps)
     rq.qualityMetrics.extend(idqc.getIDQuality(exp, pros, peps, ms2num))
 
+    self.assertTrue(rq.qualityMetrics[25].value == 1.0)
+
+    print(rq)
+
 if __name__ == '__main__':
   unittest.main()
