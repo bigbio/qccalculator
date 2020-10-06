@@ -1,0 +1,11 @@
+click
+pyopenms
+numpy
+pandas
+pronto
+requests
+toposort
+pytest
+setuptools
+git+https://github.com/bigbio/mzqc-pylib.git#egg=mzqc-pylib
+

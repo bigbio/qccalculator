@@ -11,7 +11,7 @@ from Bio import SeqIO, SeqRecord
 from Bio.SeqUtils import ProtParam
 from mzqc import MZQCFile as mzqc
 
-from QCCalculator import utils
+from qccalculator import utils
 
 """
 Calculate id based metrics from MaxQuant result files
@@ -21,7 +21,7 @@ def loadMQZippedResults(url: str) -> Tuple[pandas.DataFrame,pandas.DataFrame]:
     """
     get_mq_zipped_evidence acquires the necessary MQ inputfiles from a URL to a zipped archive
 
-    The predominant way identifications from MQ are stored in open mass spectrometry data repositories is in a zip file for the submission. 
+    The predominant way identifications from MQ are stored in open mass spectrometry data repositories is in a zip file for the submission.
     The methods loads the archive and retrieves the QC metric relevant result files from the archive.
 
     Parameters
@@ -33,7 +33,7 @@ def loadMQZippedResults(url: str) -> Tuple[pandas.DataFrame,pandas.DataFrame]:
     -------
     Tuple[pandas.DataFrame,pandas.DataFrame]
         The parameters and evidence files from a MaxQuant result rehashed in accessible pandas dataframes.
-    """    
+    """
     with urllib.request.urlopen(url, timeout=10) as dl:
         with zipfile.ZipFile(io.BytesIO(dl.read())) as z:
             ef = 'evidence.txt'
@@ -41,7 +41,7 @@ def loadMQZippedResults(url: str) -> Tuple[pandas.DataFrame,pandas.DataFrame]:
             ld = dict()  # {'ev':'evidence.txt', 'pa':'parameters.txt'}
             dirs = dict()  # {f: {'ev':'evidence.txt', 'pa':'parameters.txt'} }
             for f in z.namelist():
-                if(z.getinfo(f).is_dir()):
+                if z.getinfo(f).is_dir():
                     dirs[f] = dict()
                 elif f == ef:
                     ld['ev'] = f
@@ -79,11 +79,11 @@ def loadMQZippedResults(url: str) -> Tuple[pandas.DataFrame,pandas.DataFrame]:
                 pa.set_index('parameter', inplace=True)
             return pa,ev
 
-def getMQMetrics(target_raw: str, params: pandas.DataFrame, evidence: pandas.DataFrame, ms2num: int = 0) -> List[mzqc.QualityMetric]: 
+def getMQMetrics(target_raw: str, params: pandas.DataFrame, evidence: pandas.DataFrame, ms2num: int = 0) -> List[mzqc.QualityMetric]:
     """
     getMQMetrics calculates id based QC metrics from MaxQuant results as close as possible to the way they are calculated from regular id files.
 
-    For a given raw file (name), the respective results are extracted from dataframes derived off the parameters and evidence files from a 
+    For a given raw file (name), the respective results are extracted from dataframes derived off the parameters and evidence files from a
     MaxQuant result (of potentially multiple raw files combined analysis). As many metrics similar or equal to those dependent of regular id files
     are calculated.
 
@@ -102,7 +102,7 @@ def getMQMetrics(target_raw: str, params: pandas.DataFrame, evidence: pandas.Dat
     -------
     List[mzqc.QualityMetric]
         A list of QualityMetrics close to what is calculated from a regular id-based QC calculation.
-    """    
+    """
     if not target_raw in evidence['raw file'].unique():
         return list()  # TODO warn
     else:
@@ -111,40 +111,40 @@ def getMQMetrics(target_raw: str, params: pandas.DataFrame, evidence: pandas.Dat
         target_mq = evidence.loc[(evidence['raw file'] == target_raw) & (evidence['ms/ms scan number'].notnull())]
 
         mq_metrics.append(
-            mzqc.QualityMetric(cvRef="QC", 
-                    accession="QC:0000000", 
-                    name="Sequence database name", 
+            mzqc.QualityMetric(cvRef="QC",
+                    accession="QC:0000000",
+                    name="Sequence database name",
                     value=params.loc['fasta file']['value'])
         )
 
-        proteins = len(target_mq['leading proteins'].unique()) 
+        proteins = len(target_mq['leading proteins'].unique())
         mq_metrics.append(
-            mzqc.QualityMetric(cvRef="QC", 
-                    accession="QC:0000000", 
-                    name="Total number of identified proteins", 
+            mzqc.QualityMetric(cvRef="QC",
+                    accession="QC:0000000",
+                    name="Total number of identified proteins",
                     value=proteins)
         )
 
         # #     name="Total number of PSM",   # NA
         # metrics.append(
-        #     mzqc.QualityMetric(cvRef="QC", 
-        #             accession="QC:0000000", 
-        #             name="Total number of PSM", 
+        #     mzqc.QualityMetric(cvRef="QC",
+        #             accession="QC:0000000",
+        #             name="Total number of PSM",
         #             value=psm_count)
         # )
 
         mq_metrics.append(
-            mzqc.QualityMetric(cvRef="QC", 
-                    accession="QC:0000000", 
-                    name="Total number of identified peptide spectra", 
+            mzqc.QualityMetric(cvRef="QC",
+                    accession="QC:0000000",
+                    name="Total number of identified peptide spectra",
                     value=len(target_mq))
         )
 
         peptides = len(target_mq['sequence'].unique())
         mq_metrics.append(
-            mzqc.QualityMetric(cvRef="QC", 
-                    accession="QC:0000000", 
-                    name="Total number identified unique peptide sequences", 
+            mzqc.QualityMetric(cvRef="QC",
+                    accession="QC:0000000",
+                    name="Total number identified unique peptide sequences",
                     value=peptides)
         )
 
@@ -167,9 +167,9 @@ def getMQMetrics(target_raw: str, params: pandas.DataFrame, evidence: pandas.Dat
 
         identification_scoring_metrics = target_mq[['retention time','charge','score']].rename(columns={'retention time':'RT','charge': 'c','score':score_type}).to_dict(orient='list')
         mq_metrics.append(
-            mzqc.QualityMetric(cvRef="QC", 
-                    accession="QC:0000000", 
-                    name="Identification scoring metric values", 
+            mzqc.QualityMetric(cvRef="QC",
+                    accession="QC:0000000",
+                    name="Identification scoring metric values",
                     value=identification_scoring_metrics)
         )
 
@@ -178,11 +178,11 @@ def getMQMetrics(target_raw: str, params: pandas.DataFrame, evidence: pandas.Dat
         identification_accuracy_metrics = target_mq[['ms/ms m/z','mass error [ppm]','uncalibrated mass error [da]']]\
             .rename(columns={'ms/ms m/z': 'MZ','mass error [ppm]':'delta_ppm','uncalibrated mass error [da]':'abs_error'})
         identification_accuracy_metrics['abs_error'] = identification_accuracy_metrics['abs_error'].abs()
-        identification_accuracy_metrics = identification_accuracy_metrics.to_dict(orient='list')    
+        identification_accuracy_metrics = identification_accuracy_metrics.to_dict(orient='list')
         mq_metrics.append(
-            mzqc.QualityMetric(cvRef="QC", 
-                    accession="QC:0000000", 
-                    name="Identifications accuracy metric values", 
+            mzqc.QualityMetric(cvRef="QC",
+                    accession="QC:0000000",
+                    name="Identifications accuracy metric values",
                     value=identification_accuracy_metrics)
         )
 
@@ -190,26 +190,26 @@ def getMQMetrics(target_raw: str, params: pandas.DataFrame, evidence: pandas.Dat
         hydrophobicity_metrics['gravy'] = hydrophobicity_metrics['peptide'].apply(lambda x: ProtParam.ProteinAnalysis(x).gravy())
         hydrophobicity_metrics = hydrophobicity_metrics[['RT','gravy']].to_dict(orient='list')
         mq_metrics.append(
-            mzqc.QualityMetric(cvRef="QC", 
-                    accession="QC:0000000", 
-                    name="Hydrophobicity metric values", 
+            mzqc.QualityMetric(cvRef="QC",
+                    accession="QC:0000000",
+                    name="Hydrophobicity metric values",
                     value=hydrophobicity_metrics)
         )
 
         # TODO target/decoy info available??
         identification_sequence_metrics = target_mq[['sequence','retention time','ms/ms scan number']].rename(columns={'sequence':'peptide','retention time':'RT','ms/ms scan number':'native_id'}).to_dict(orient='list')
         mq_metrics.append(
-            mzqc.QualityMetric(cvRef="QC", 
-                    accession="QC:0000000", 
-                    name="Identifications sequence metric values", 
+            mzqc.QualityMetric(cvRef="QC",
+                    accession="QC:0000000",
+                    name="Identifications sequence metric values",
                     value=identification_sequence_metrics)
         )
 
-        ## simple id metrics 
+        ## simple id metrics
         mq_metrics.append(
-            mzqc.QualityMetric(cvRef="QC", 
-                    accession="QC:0000000", 
-                    name="Identification to tandem spectra ratio", 
+            mzqc.QualityMetric(cvRef="QC",
+                    accession="QC:0000000",
+                    name="Identification to tandem spectra ratio",
                     value=float(len(target_mq))/float(ms2num))
         )
 
