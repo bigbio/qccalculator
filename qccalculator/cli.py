@@ -50,11 +50,22 @@ def mzqc_assembly(rqs, sqs, out):
 @click.option('--output', required=True, type=click.Path(), default="/tmp/out.mzQC", help="The path and name of the desired output file.")
 @click.option('--zip/--no-zip', default=False, help="Apply gzip to the output. Appends '.gz' to the target filename and pretty formatting.")
 def start(output, zip):
-    """Calculate quality metrics for given files.
-       Multiple files input is possible (each after a "full/basic" COMMAND).
-       All metrics of one QCCalculator execution will be stored in on output file.
-       If you need separate mzQC files, please execute separately.
-       For more information on the different COMMAND types, try QCCalculator COMMAND --help"""
+    """
+    Calculate quality metrics for given files.
+    Multiple files input is possible (each after a "full/basic" COMMAND).
+    All metrics of one QCCalculator execution will be stored in on output file.
+    If you need separate mzQC files, please execute separately.
+    For more information on the different COMMAND types, try QCCalculator COMMAND --help
+
+    Parameters
+    ----------
+    output: path to the output file qcml
+    zip: add zip to the output file
+
+    Returns
+    -------
+
+    """
     logging.warn("Recieved output destination {}".format(output))
     global out
     out = output
@@ -67,7 +78,19 @@ def start(output, zip):
 @click.option('--mzid', type=click.Path(exists=True), help="If you have a corresponding mzid file you need to pass it, too. Mutually exclusive to idxml.")
 @click.option('--idxml', type=click.Path(exists=True), help="If you have a corresponding idxml file you need to pass it, too. Mutually exclusive to mzid.")
 def full(filename, mzid=None, idxml=None):
-    """Calculate all possible metrics for these files. These data sources will be included in set metrics."""
+    """
+    Calculate all possible metrics for these files. These data sources will be included in set metrics.
+
+    Parameters
+    ----------
+    filename:
+    mzid:
+    idxml:
+
+    Returns
+    -------
+
+    """
     exp = oms.MSExperiment()
     oms.MzMLFile().load(click.format_filename(filename), exp)
     rq = basicqc.getBasicQuality(exp)
@@ -148,7 +171,17 @@ def maxq(filename, zipurl, rawname):
 @start.command()
 @click.argument('filename', type=click.Path(exists=True))
 def basic(filename):
-    """Calculate the basic metrics available from virtually every mzML file."""
+    """
+    Calculate the basic metrics available from virtually every mzML file.
+
+    Parameters
+    ----------
+    filename: compute the Qc metrics for a mzML file
+
+    Returns
+    -------
+
+    """
     exp = oms.MSExperiment()
     oms.MzMLFile().load(click.format_filename(filename), exp)
     rq = basicqc.getBasicQuality(exp)
