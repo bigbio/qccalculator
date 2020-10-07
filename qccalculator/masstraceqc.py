@@ -1,6 +1,6 @@
 from collections import defaultdict
 from itertools import chain
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List,  Set, Tuple
 
 import numpy as np
 from toposort import toposort
@@ -17,7 +17,7 @@ def getLongestTag(spec: oms.MSSpectrum, aa_weights: List[float], tol: float=0.5)
     if not spec.isSorted():
         spec.sortByPosition()
 
-    edges: List[Tuple[int,int]] = list() 
+    edges: List[Tuple[int,int]] = list()
     node_dependencies: Dict[int,Set[Any]] = defaultdict(set)
     path_score: Dict[int,int] = defaultdict(lambda: np.NINF)
     for i in range(0,spec.size()-1):
@@ -52,12 +52,12 @@ def getMassTraceMatchingMS2(exp: oms.MSExperiment, tol: float=0.5) -> List[mzqc.
     oms.MassTraceDetection().run(exp,mts,0)  # since 2.5.0 with 3rd argument
     mts_coord = np.array([[m.getCentroidMZ(),m.getCentroidRT()] for m in mts])
     # ms2_coord = np.array([[s.getPrecursors()[0].getMZ(), s.getRT()] for s in exp if s.getMSLevel()==2])
-    
+
     for s in exp:
         if s.getMSLevel()==2:
             mz_matches = np.isclose(mts_coord[:,0], s.getPrecursors()[0].getMZ(), atol=tol)
             rt_dist_per_match = np.abs(mts_coord[np.where(mz_matches)][:,1] - s.getRT())
-            match_idx_in_dist = np.argwhere(mz_matches)  # indices of match only in mts and mts_coord 
+            match_idx_in_dist = np.argwhere(mz_matches)  # indices of match only in mts and mts_coord
             closest_rt_rowidx = rt_dist_per_match.argmin()  # index in match_only distances array
             # rt_dist_per_match[closest_rt_rowidx] == mts_coord[match_idx[closest_rt_rowidx][0]][1]-s.getRT()
             closest_match_mt = mts[match_idx_in_dist[closest_rt_rowidx][0]]
@@ -69,9 +69,9 @@ def getMassTraceMatchingMS2(exp: oms.MSExperiment, tol: float=0.5) -> List[mzqc.
             closest_match_mt.getFWHM()  # seconds - what if 0 or getTraceLength()?
             closest_match_mt.getMaxIntensity(False)
 
-            # NB precursor intensity is always 0! 
+            # NB precursor intensity is always 0!
             # NB masstrace does not store peak intensities (except max and sum)
-            # 4 categories for MS2 regarding sampling 
+            # 4 categories for MS2 regarding sampling
             # -2 (out of trace, before centr RT) ; -1 (in trace, before centr RT) ;1 (in trace, after centr RT) ;2 (out of trace, after centr RT) ;
             rt_1st = np.min(closest_match_mt.getConvexhull().getHullPoints()[:,0])
             rt_last = np.max(closest_match_mt.getConvexhull().getHullPoints()[:,0])
@@ -97,7 +97,7 @@ def getMassTraceMatchingMS2(exp: oms.MSExperiment, tol: float=0.5) -> List[mzqc.
     #         on which side is the precursor
     #         how wobbly is the mt (mz sd)
     #         how long is the mt (fwhm)
-    #         are there others close? (next closest)	
+    #         are there others close? (next closest)
 
 
     # computePeakArea(

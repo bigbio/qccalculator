@@ -3,7 +3,7 @@ import zipfile
 import urllib.request
 import warnings
 from itertools import chain
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
+from typing import List, Tuple
 
 import pandas
 import pronto
