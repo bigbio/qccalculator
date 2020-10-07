@@ -66,7 +66,7 @@ def start(output, zip):
     -------
 
     """
-    logging.warn("Recieved output destination {}".format(output))
+    logging.warn("Received output destination {}".format(output))
     global out
     out = output
     if zip:
@@ -83,9 +83,9 @@ def full(filename, mzid=None, idxml=None):
 
     Parameters
     ----------
-    filename:
-    mzid:
-    idxml:
+    filename: mzML to compute the qc metrics
+    mzid: the identification file in mzIdentML to compute the id qc metrics
+    idxml: the identification file in idXML to compute the id qc metrics
 
     Returns
     -------
@@ -137,7 +137,19 @@ def full(filename, mzid=None, idxml=None):
 @click.option('--zipurl', type=click.Path(exists=True), required=True, help="The URL to a max quant output zip file (must contain evidence.txt and parameters.txt).")
 @click.option('--rawname', type=str, default="", help="The raw file name of interest (as in evidence.txt) without path or extension.")
 def maxq(filename, zipurl, rawname):
-    """Calculate all possible metrics for these files. These data sources will be included in set metrics."""
+    """
+    Calculate all possible metrics id and spectra for MaxQuant output. These data sources will be included in set metrics.
+
+    Parameters
+    ----------
+    filename: the mzML files to compute the QC metrics
+    zipurl: zip file with all the MQ outputs.
+    rawname: The files thatwill be ue to compute the QC metrics.
+
+    Returns
+    -------
+
+    """
     exp = oms.MSExperiment()
     oms.MzMLFile().load(click.format_filename(filename), exp)
     rq = basicqc.getBasicQuality(exp)
@@ -157,7 +169,7 @@ def maxq(filename, zipurl, rawname):
     try:
         mq,params = idqcmq.loadMQZippedResults(zipurl)
         if not rawname:
-            logging.warning("Infering rawname from mzML")
+            logging.warning("Inferring rawname from mzML")
             rawname = basename(exp.getExperimentalSettings().getSourceFiles()[0].getNameOfFile().decode()) # TODO split extensions
 
         rq.qualityMetrics.extend(idqcmq.getMQMetrics(rawname, params,mq, ms2num))
