@@ -20,6 +20,12 @@ zp = False
 
 #@click.pass_context
 def finale():
+  """
+  Gunzip and compress the output files.
+
+  Returns
+  -------
+  """
     logging.warn("Calculated metrics from {} different input peak files".format(len(rqs)))
     logging.warn("Attempting to write results to {}{}".format(out, ".gz" if zp else ""))
     if any(rqs) or any(sqs) or out:
@@ -32,7 +38,19 @@ def finale():
     logging.warn("Done. Thank you for choosing QCCalculator!")
 
 def mzqc_assembly(rqs, sqs, out):
-    # TODO check all the metrics to see which ontologies were used
+    """
+    Setup the latest version of qcML ontology file
+
+    Parameters
+    ----------
+    rqs: Run qualities
+    sqs: Set Qualities
+    out: output file file
+
+    Returns
+    -------
+
+    """
     cv_qc = qc.ControlledVocabulary(ref="QC",
         name="Proteomics Standards Initiative Quality Control Ontology",
         version="0.1.0", uri="https://github.com/HUPO-PSI/qcML-development/blob/master/cv/v0_1_0/qc-cv.obo")
