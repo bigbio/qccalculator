@@ -4,7 +4,7 @@ import requests
 import warnings
 from io import StringIO
 import urllib
-from typing import Any,List,Tuple, Union
+from typing import Any, List, Tuple, Union
 
 import pyopenms as oms
 import numpy as np
@@ -15,8 +15,9 @@ from Bio import SeqIO, SeqRecord
 Utility functions that do not contribute directly to QC calculations
 """
 
+
 def sha256fromfile(abs_file_path: str) -> str:
-    """
+  """
     sha256fromfile will create a sha256 digest from the file at given path.
 
     To preserve memory and speed up the digest,
@@ -39,17 +40,18 @@ def sha256fromfile(abs_file_path: str) -> str:
     FileNotFoundError
         If abs_file_path is not a file
     """
-    sha  = hashlib.sha256()
-    b  = bytearray(128*1024)
-    mv = memoryview(b)
+  sha = hashlib.sha256()
+  b = bytearray(128 * 1024)
+  mv = memoryview(b)
 
-    with open(abs_file_path, 'rb', buffering=0) as f:
-        for n in iter(lambda : f.readinto(mv), 0):
-            sha.update(mv[:n])
-    return sha.hexdigest()
+  with open(abs_file_path, 'rb', buffering=0) as f:
+    for n in iter(lambda: f.readinto(mv), 0):
+      sha.update(mv[:n])
+  return sha.hexdigest()
 
-def cast_if_int(pot_int: Any) -> Union[int,Any]:
-    """
+
+def cast_if_int(pot_int: Any) -> Union[int, Any]:
+  """
     cast_if_int convenience function to cast to int
 
     Due to the frequent use of numpy.dtypes and pyOpenMS return of binary encode strings,
@@ -65,13 +67,14 @@ def cast_if_int(pot_int: Any) -> Union[int,Any]:
     Union[int,Any]
         In case the argument is cast-able into int, will return that int, unchanged argument otherwise.
     """
-    try:
-        return int(pot_int)
-    except ValueError as e:
-        return pot_int
+  try:
+    return int(pot_int)
+  except ValueError as e:
+    return pot_int
 
-def spec_native_id(spec: oms.MSSpectrum) -> Union[int,None]:
-    """
+
+def spec_native_id(spec: oms.MSSpectrum) -> Union[int, None]:
+  """
     spec_native_id convenience function to retrieve the native id number from a spectrum
 
     Since the spectrums native id is a string formatted with much additional, albeit
@@ -88,18 +91,19 @@ def spec_native_id(spec: oms.MSSpectrum) -> Union[int,None]:
     Union[int,None]
         Return is None if spectrum native id cannot be interpreted (e.g. not of scan=number format)
     """
-    spre = spec.getNativeID()
-    if spre:
-        matches = re.findall("scan=(\d+)$", spre)
-        if len(matches)!=1:  # should really never be >1 with the `$`
-            return None
-        else:
-            return cast_if_int(matches[0])
+  spre = spec.getNativeID()
+  if spre:
+    matches = re.findall("scan=(\d+)$", spre)
+    if len(matches) != 1:  # should really never be >1 with the `$`
+      return None
     else:
-        return None
+      return cast_if_int(matches[0])
+  else:
+    return None
 
-def pep_native_id(p: oms.Peptide) -> Union[int,None]:
-    """
+
+def pep_native_id(p: oms.Peptide) -> Union[int, None]:
+  """
     pep_native_id convenience function to retrieve the native id number from an identification
 
     Counterpart to spec_native_id.
@@ -118,18 +122,19 @@ def pep_native_id(p: oms.Peptide) -> Union[int,None]:
     Union[int,None]
         Return is None if native id cannot be interpreted (e.g. not of scan=number format)
     """
-    spre = p.getMetaValue('spectrum_reference')
-    if spre:
-        matches = re.findall("scan=(\d+)$", spre)
-        if len(matches)!=1:  # should really never be >1 with the `$`
-            return None
-        else:
-            return cast_if_int(matches[0])
+  spre = p.getMetaValue('spectrum_reference')
+  if spre:
+    matches = re.findall("scan=(\d+)$", spre)
+    if len(matches) != 1:  # should really never be >1 with the `$`
+      return None
     else:
-        return None
+      return cast_if_int(matches[0])
+  else:
+    return None
 
-def getMassDifference(theo_mz: float, exp_mz: float, use_ppm: bool=True)-> float:
-    """
+
+def getMassDifference(theo_mz: float, exp_mz: float, use_ppm: bool = True) -> float:
+  """
     getMassDifference convenience function to easily switch the delta mass to either [ppm] or [Da] format.
 
     Given two masses, the calculated result will be the delta mass, in [ppm] if requested.
@@ -149,13 +154,14 @@ def getMassDifference(theo_mz: float, exp_mz: float, use_ppm: bool=True)-> float
     float
         [description]
     """
-    error: float = (exp_mz - theo_mz)
-    if use_ppm:
-        error = error / (theo_mz * 1e-6)
-    return error
+  error: float = (exp_mz - theo_mz)
+  if use_ppm:
+    error = error / (theo_mz * 1e-6)
+  return error
+
 
 def getTrapTime(spec: oms.MSSpectrum, acqusition_unavailable=False) -> float:
-    """
+  """
     getTrapTime for a given MSn spectrum, return the ion trap collection time applied during acquisition.
 
     The ion collection time, usually the same for spectra of one level from one
@@ -177,20 +183,21 @@ def getTrapTime(spec: oms.MSSpectrum, acqusition_unavailable=False) -> float:
     float
         Ion trap collection time in [ms] for given MSn
     """
-    tt = -1.0
-    if acqusition_unavailable:
-        if spec.metaValueExists('MS:1000927'):
-            tt = spec.getMetaValue('MS:1000927')
-    else:
-        if not spec.getAcquisitionInfo():
-            for j in spec.getAcquisitionInfo():
-                if j.metaValueExists("MS:1000927"):
-                    tt = j.getMetaValue("MS:1000927")
-                    break
-    return tt
+  tt = -1.0
+  if acqusition_unavailable:
+    if spec.metaValueExists('MS:1000927'):
+      tt = spec.getMetaValue('MS:1000927')
+  else:
+    if not spec.getAcquisitionInfo():
+      for j in spec.getAcquisitionInfo():
+        if j.metaValueExists("MS:1000927"):
+          tt = j.getMetaValue("MS:1000927")
+          break
+  return tt
+
 
 def extractDistributionStats(value_array: np.array) -> Tuple:
-    """
+  """
     extractDistributionStats pulls descriptive distribution stats from an numpy array of values
 
     Extracted are the quartiles, sigma, mean, and outlier values ><1.5*IQR (in no guaranteed order)
@@ -205,17 +212,18 @@ def extractDistributionStats(value_array: np.array) -> Tuple:
     Tuple
         In order the values Q1, Q2, Q3, sigma, mean, outliers
     """
-    q1, q2, q3 = np.quantile(value_array, [.25,.5,.75])
-    s=np.std(value_array)
-    m=np.mean(value_array)
+  q1, q2, q3 = np.quantile(value_array, [.25, .5, .75])
+  s = np.std(value_array)
+  m = np.mean(value_array)
 
-    low_out = q1-(1.5*(q3-q1))
-    high_out = q3+(1.5*(q3-q1))
-    ol=np.extract((value_array<low_out) | (value_array>high_out), value_array)
-    return q1, q2, q3, s, m, ol
+  low_out = q1 - (1.5 * (q3 - q1))
+  high_out = q3 + (1.5 * (q3 - q1))
+  ol = np.extract((value_array < low_out) | (value_array > high_out), value_array)
+  return q1, q2, q3, s, m, ol
 
-def getUniProtSequences(accessions: List[str]) -> Union[List[SeqRecord.SeqRecord],None]:
-    """
+
+def getUniProtSequences(accessions: List[str]) -> Union[List[SeqRecord.SeqRecord], None]:
+  """
     getUniProtSequences retrieves the
 
     The function will formulate a query to uniprot and parse the result into a list of Bio.SeqRecord s.
@@ -237,19 +245,21 @@ def getUniProtSequences(accessions: List[str]) -> Union[List[SeqRecord.SeqRecord
 
     # https://docs.python.org/3/library/xml.etree.elementtree.html#pull-api-for-non-blocking-parsing
     """
-    acc = '+OR+'.join(['id:'+a for a in accessions])
-    params = {"query": acc, "format": "fasta", "include": "no"}  # no isoforms
-    response = requests.get("https://www.uniprot.org/uniprot/", params=params, verify=False)  # ugh, https certificate verification does not work OOTB with uniprot.org
-    if not response.ok:
-        response.raise_for_status()
-        warnings.warn("UniProt query for sequences unsuccessful.")
-        return None
-    seqs = [s for s in SeqIO.parse(StringIO(response.text),format='fasta')]
+  acc = '+OR+'.join(['id:' + a for a in accessions])
+  params = {"query": acc, "format": "fasta", "include": "no"}  # no isoforms
+  response = requests.get("https://www.uniprot.org/uniprot/", params=params,
+                          verify=False)  # ugh, https certificate verification does not work OOTB with uniprot.org
+  if not response.ok:
+    response.raise_for_status()
+    warnings.warn("UniProt query for sequences unsuccessful.")
+    return None
+  seqs = [s for s in SeqIO.parse(StringIO(response.text), format='fasta')]
 
-    return seqs
+  return seqs
+
 
 def obtainOntology(url: str) -> pronto.Ontology:
-    """
+  """
     obtainOntology provides pronto ontology objects and handles aspects of provision
 
     An ontology can be requested by URL or common names which draws the latest available
@@ -270,22 +280,24 @@ def obtainOntology(url: str) -> pronto.Ontology:
     poof
         general NameError with url information
     """
-    usual_suspects = {"psi-ms": "https://github.com/HUPO-PSI/psi-ms-CV/releases/download/4.1.31/psi-ms.obo",
+  usual_suspects = {"psi-ms": "https://github.com/HUPO-PSI/psi-ms-CV/releases/download/4.1.31/psi-ms.obo",
                     "psi-qc": "https://raw.githubusercontent.com/HUPO-PSI/mzQC/master/cv/qc-cv.obo",
                     "units": "http://purl.obolibrary.org/obo/uo.owl",
                     "pride": "http://purl.obolibrary.org/obo/pride_cv.obo"}
-    usual_suspects.update({"MS": usual_suspects["psi-ms"],
-                        "QC": usual_suspects["psi-qc"],
-                        "UO": usual_suspects["units"]})
-    # TODO move hardcoded urls to file
+  usual_suspects.update({"MS": usual_suspects["psi-ms"],
+                         "QC": usual_suspects["psi-qc"],
+                         "UO": usual_suspects["units"]})
+  # TODO move hardcoded urls to file
 
-    if url in usual_suspects:
-        url = usual_suspects[url]
-    try:
-        with urllib.request.urlopen(url, timeout=10) as obo_in:
-            obo = pronto.Ontology(obo_in)
-    except Exception as e:
-        poof = NameError("Unable to obtain {}; please make sure the url exists, is available, and contains a parseable ontology.".format(url))
-        raise poof from e
-        # TODO separate 404 from connection/transmission error
-    return obo
+  if url in usual_suspects:
+    url = usual_suspects[url]
+  try:
+    with urllib.request.urlopen(url, timeout=10) as obo_in:
+      obo = pronto.Ontology(obo_in)
+  except Exception as e:
+    poof = NameError(
+      "Unable to obtain {}; please make sure the url exists, is available, and contains a parseable ontology.".format(
+        url))
+    raise poof from e
+    # TODO separate 404 from connection/transmission error
+  return obo
