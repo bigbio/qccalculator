@@ -6,8 +6,6 @@ from itertools import chain
 from typing import List, Tuple
 
 import pandas
-import pronto
-from Bio import SeqIO, SeqRecord
 from Bio.SeqUtils import ProtParam
 from mzqc import MZQCFile as mzqc
 

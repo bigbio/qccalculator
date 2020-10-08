@@ -1,12 +1,8 @@
-import warnings
-import requests
 import re
 from collections import defaultdict
-from itertools import chain
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union, Pattern
+from typing import Any,  Dict, List, Tuple, Pattern
 
-from Bio import SeqIO, SeqRecord
-from Bio.SeqUtils import ProtParam
+from Bio import  SeqRecord
 from mzqc import MZQCFile as mzqc
 import pyopenms as oms
 import numpy as np

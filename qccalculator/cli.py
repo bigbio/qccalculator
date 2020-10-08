@@ -112,7 +112,7 @@ def basic(mzml, output, zip):
 
   Parameters
   ----------
-  filename: compute the Qc metrics for a mzML file
+  mzml: compute the Qc metrics for a mzML file
 
   Returns
   -------
@@ -139,9 +139,9 @@ def full(mzid=None, idxml=None, mzml=None, output=None, zip=None):
 
   Parameters
   ----------
-  filename: mzML to compute the qc metrics
   mzid: the identification file in mzIdentML to compute the id qc metrics
   idxml: the identification file in idXML to compute the id qc metrics
+  mzml: mzML to compute the qc metrics
 
   Returns
   -------
@@ -202,9 +202,9 @@ def maxq(zipurl, rawname, mzml, output, zip):
 
   Parameters
   ----------
-  filename: the mzML files to compute the QC metrics
   zipurl: zip file with all the MQ outputs.
   rawname: The files that will be use to compute the QC metrics.
+  mzml: the mzML files to compute the QC metrics
 
   Returns
   -------
