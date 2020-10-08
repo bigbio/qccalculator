@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import os
 from os.path import basename
 
 import click
@@ -11,32 +10,39 @@ from typing import List
 import pyopenms as oms
 from click import command
 from mzqc import MZQCFile as qc
-from qccalculator import utils, basicqc, idqc, idqcmq, enzymeqc, masstraceqc
+from qccalculator import basicqc, idqc, idqcmq
 
 rqs: List[qc.RunQuality] = list()
 sqs: List[qc.SetQuality] = list()
 out = str()
 zp = False
 
+CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
-# @click.pass_context
-def finale():
+
+def global_variables(output, zip):
   """
-  Gunzip and compress the output files.
+  Calculate quality metrics for given files.
+  Multiple files input is possible (each after a "full/basic" COMMAND).
+  All metrics of one QCCalculator execution will be stored in on output file.
+  If you need separate mzQC files, please execute separately.
+  For more information on the different COMMAND types, try QCCalculator COMMAND --help
+
+  Parameters
+  ----------
+  output: path to the output file qcml
+  zip: add zip to the output file
 
   Returns
   -------
+
   """
-  logging.warn("Calculated metrics from {} different input peak files".format(len(rqs)))
-  logging.warn("Attempting to write results to {}{}".format(out, ".gz" if zp else ""))
-  if any(rqs) or any(sqs) or out:
-    if zp:
-      with gzip.GzipFile(out + '.gz', 'w') as fh:
-        fh.write(qc.JsonSerialisable.ToJson(mzqc_assembly(rqs, sqs, out), readability=1).encode('utf-8'))
-    else:
-      with open(out, 'w') as fh:
-        fh.write(qc.JsonSerialisable.ToJson(mzqc_assembly(rqs, sqs, out), readability=0))
-  logging.warn("Done. Thank you for choosing QCCalculator!")
+  logging.warn("Received output destination {}".format(output))
+  global out
+  out = output
+  if zip:
+    global zp
+    zp = True
 
 
 def mzqc_assembly(rqs, sqs, out):
@@ -68,43 +74,66 @@ def mzqc_assembly(rqs, sqs, out):
                      controlledVocabularies=[cv_qc, cv_ms])
 
 
-@click.group(chain=True)
-@click.option('--output', required=True, type=click.Path(), default="/tmp/out.mzQC",
-              help="The path and name of the desired output file.")
-@click.option('--zip/--no-zip', default=False,
-              help="Apply gzip to the output. Appends '.gz' to the target filename and pretty formatting.")
-def start(output, zip):
+# @click.pass_context
+def finale():
   """
-  Calculate quality metrics for given files.
-  Multiple files input is possible (each after a "full/basic" COMMAND).
-  All metrics of one QCCalculator execution will be stored in on output file.
-  If you need separate mzQC files, please execute separately.
-  For more information on the different COMMAND types, try QCCalculator COMMAND --help
+  Gunzip and compress the output files.
+
+  Returns
+  -------
+  """
+  logging.warn("Calculated metrics from {} different input peak files".format(len(rqs)))
+  logging.warn("Attempting to write results to {}{}".format(out, ".gz" if zp else ""))
+  if any(rqs) or any(sqs) or out:
+    if zp:
+      with gzip.GzipFile(out + '.gz', 'w') as fh:
+        fh.write(qc.JsonSerialisable.ToJson(mzqc_assembly(rqs, sqs, out), readability=1).encode('utf-8'))
+    else:
+      with open(out, 'w') as fh:
+        fh.write(qc.JsonSerialisable.ToJson(mzqc_assembly(rqs, sqs, out), readability=0))
+  logging.warn("Done. Thank you for choosing QCCalculator!")
+
+
+def common_options(function):
+  function = click.option('--mzml')(function)
+  function = click.option('--output', required=True, type=click.Path(), default="out.mzQC",
+                          help="The path and name of the desired output file.")(function)
+  function = click.option('--zip', default=False,
+                          help="Apply gzip to the output. Appends '.gz' to the target filename and pretty formatting.",
+                          is_flag=True)(function)
+  return function
+
+
+@click.command('basic', short_help='Compute Qc metrics for an mzML file')
+@common_options
+def basic(mzml, output, zip):
+  """
+  Calculate the basic metrics available from virtually every mzML file.
 
   Parameters
   ----------
-  output: path to the output file qcml
-  zip: add zip to the output file
+  filename: compute the Qc metrics for a mzML file
 
   Returns
   -------
 
   """
-  logging.warn("Received output destination {}".format(output))
-  global out
-  out = output
-  if zip:
-    global zp
-    zp = True
+  exp = oms.MSExperiment()
+  oms.MzMLFile().load(click.format_filename(mzml), exp)
+  rq = basicqc.getBasicQuality(exp)
+  rqs.append(rq)
+
+  global_variables(output, zip)
+  finale()
 
 
-@start.command()
-@click.argument('filename', type=click.Path(exists=True))
+@click.command("full", short_help='Compute the QC metrics for spectra file (mzML) and identification data')
 @click.option('--mzid', type=click.Path(exists=True),
               help="If you have a corresponding mzid file you need to pass it, too. Mutually exclusive to idxml.")
 @click.option('--idxml', type=click.Path(exists=True),
               help="If you have a corresponding idxml file you need to pass it, too. Mutually exclusive to mzid.")
-def full(filename, mzid=None, idxml=None):
+@common_options
+def full(mzid=None, idxml=None, mzml=None, output=None, zip=None):
   """
   Calculate all possible metrics for these files. These data sources will be included in set metrics.
 
@@ -119,7 +148,7 @@ def full(filename, mzid=None, idxml=None):
 
   """
   exp = oms.MSExperiment()
-  oms.MzMLFile().load(click.format_filename(filename), exp)
+  oms.MzMLFile().load(click.format_filename(mzml), exp)
   rq = basicqc.getBasicQuality(exp)
 
   if idxml and mzid:
@@ -157,16 +186,17 @@ def full(filename, mzid=None, idxml=None):
     rq.qualityMetrics.extend(idqc.getIDQuality(exp, pros, peps, ms2num))
   rqs.append(rq)
 
+  global_variables(output, zip)
   finale()
 
 
-@start.command()
-@click.argument('filename', type=click.Path(exists=True))
+@click.command("maxq", short_help="Compute the MaxQuant quality metrics")
 @click.option('--zipurl', type=click.Path(exists=True), required=True,
               help="The URL to a max quant output zip file (must contain evidence.txt and parameters.txt).")
 @click.option('--rawname', type=str, default="",
               help="The raw file name of interest (as in evidence.txt) without path or extension.")
-def maxq(filename, zipurl, rawname):
+@common_options
+def maxq(zipurl, rawname, mzml, output, zip):
   """
   Calculate all possible metrics id and spectra for MaxQuant output. These data sources will be included in set metrics.
 
@@ -174,14 +204,14 @@ def maxq(filename, zipurl, rawname):
   ----------
   filename: the mzML files to compute the QC metrics
   zipurl: zip file with all the MQ outputs.
-  rawname: The files thatwill be ue to compute the QC metrics.
+  rawname: The files that will be use to compute the QC metrics.
 
   Returns
   -------
 
   """
   exp = oms.MSExperiment()
-  oms.MzMLFile().load(click.format_filename(filename), exp)
+  oms.MzMLFile().load(click.format_filename(mzml), exp)
   rq = basicqc.getBasicQuality(exp)
 
   ms2num = 0
@@ -208,31 +238,25 @@ def maxq(filename, zipurl, rawname):
   except:
     logging.warn("Retrieving any results from the URL failed.")
 
+  global_variables(output, zip)
   finale()
 
 
-@start.command()
-@click.argument('filename', type=click.Path(exists=True))
-def basic(filename):
+@click.group(context_settings=CONTEXT_SETTINGS)
+def cli():
   """
-  Calculate the basic metrics available from virtually every mzML file.
-
-  Parameters
-  ----------
-  filename: compute the Qc metrics for a mzML file
-
-  Returns
-  -------
-
+  Calculate quality metrics for given files.
+  Multiple files input is possible (each after a "full/basic" COMMAND).
+  All metrics of one QCCalculator execution will be stored in on output file.
+  If you need separate mzQC files, please execute separately.
+  For more information on the different COMMAND types, try qccalculator COMMAND --help
   """
-  exp = oms.MSExperiment()
-  oms.MzMLFile().load(click.format_filename(filename), exp)
-  rq = basicqc.getBasicQuality(exp)
-  rqs.append(rq)
 
-  finale()
 
+cli.add_command(basic)
+cli.add_command(full)
+cli.add_command(maxq)
 
 if __name__ == "__main__":
-  start()
-# QCCalculator --output cli-test.mzqc full --mzid tests/CPTAC_CompRef_00_iTRAQ_01_2Feb12_Cougar_11-10-09.mzid tests/CPTAC_CompRef_00_iTRAQ_01_2Feb12_Cougar_11-10-09.trfr.t3.mzML
+  cli()
+# qccalculator --output cli-test.mzqc full --mzid tests/CPTAC_CompRef_00_iTRAQ_01_2Feb12_Cougar_11-10-09.mzid tests/CPTAC_CompRef_00_iTRAQ_01_2Feb12_Cougar_11-10-09.trfr.t3.mzML
