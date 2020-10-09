@@ -252,7 +252,6 @@ def cli():
   For more information on the different COMMAND types, try qccalculator COMMAND --help
   """
 
-
 cli.add_command(basic)
 cli.add_command(full)
 cli.add_command(maxq)
