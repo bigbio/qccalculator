@@ -20,6 +20,15 @@ zp = False
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 
+def print_help():
+  """
+  Print the help of the tool
+  :return:
+  """
+  ctx = click.get_current_context()
+  click.echo(ctx.get_help())
+  ctx.exit()
+
 def global_variables(output, zip):
   """
   Calculate quality metrics for given files.
@@ -107,6 +116,9 @@ def basic(mzml, output, zip):
   """
   Calculate the basic metrics available from virtually every mzML file.
   """
+  if mzml is None:
+    print_help()
+
   exp = oms.MSExperiment()
   oms.MzMLFile().load(click.format_filename(mzml), exp)
   rq = basicqc.getBasicQuality(exp)
@@ -126,6 +138,10 @@ def full(mzid=None, idxml=None, mzml=None, output=None, zip=None):
   """
   Calculate all possible metrics for these files. These data sources will be included in set metrics.
   """
+
+  if (mzml is None) or (mzid is None and idxml is None):
+    print_help()
+
   exp = oms.MSExperiment()
   oms.MzMLFile().load(click.format_filename(mzml), exp)
   rq = basicqc.getBasicQuality(exp)
