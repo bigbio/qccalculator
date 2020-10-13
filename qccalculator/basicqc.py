@@ -1,21 +1,13 @@
 import datetime
 import itertools
-import re
 import sys
-import warnings
-import zipfile
 from collections import defaultdict
 from os.path import basename
-from statistics import mean, median, stdev
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List
 
 import numpy as np
-import pandas
-import pronto
 import pyopenms as oms
 from pyopenms import ActivationMethod
-from Bio import SeqIO, SeqRecord
-from Bio.SeqUtils import ProtParam
 from mzqc import MZQCFile as mzqc
 
 from qccalculator import utils
@@ -127,7 +119,6 @@ def getBasicQuality(exp: oms.MSExperiment, verbose: bool = False) -> mzqc.RunQua
     intens_max = spec.get_peaks()[1].max()
     intens_min = spec.get_peaks()[1].min()
     intens_sum = spec.get_peaks()[1].sum()
-
 
     if spec.getMSLevel() == 1:
       last_surveyscan_index = spin

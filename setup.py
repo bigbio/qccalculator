@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name='qccalculator',
-    version='0.0.2',
+    version='0.0.3',
     packages=find_packages(),
     url='https://gitlab.ebi.ac.uk/walzer/qccalculator',
     description='Development for python driven QC calculation (qccalculator)',
@@ -25,6 +25,6 @@ setup(
     include_package_data=True,
     #scripts=['bin/qspector/qspector.py'] ,
     entry_points={
-        'console_scripts': ['qccalculator = qccalculator.cli:start']
+        'console_scripts': ['qccalculator = qccalculator.cli:cli']
       }
 )
