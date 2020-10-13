@@ -78,9 +78,6 @@ def mzqc_assembly(rqs, sqs, out):
 def finale():
   """
   Gunzip and compress the output files.
-
-  Returns
-  -------
   """
   logging.warn("Calculated metrics from {} different input peak files".format(len(rqs)))
   logging.warn("Attempting to write results to {}{}".format(out, ".gz" if zp else ""))
@@ -95,7 +92,7 @@ def finale():
 
 
 def common_options(function):
-  function = click.option('--mzml')(function)
+  function = click.option('--mzml', type=click.Path(), help="Path to the mzml to compute the quality metrics")(function)
   function = click.option('--output', required=True, type=click.Path(), default="out.mzQC",
                           help="The path and name of the desired output file.")(function)
   function = click.option('--zip', default=False,
@@ -109,14 +106,6 @@ def common_options(function):
 def basic(mzml, output, zip):
   """
   Calculate the basic metrics available from virtually every mzML file.
-
-  Parameters
-  ----------
-  mzml: compute the Qc metrics for a mzML file
-
-  Returns
-  -------
-
   """
   exp = oms.MSExperiment()
   oms.MzMLFile().load(click.format_filename(mzml), exp)
@@ -136,16 +125,6 @@ def basic(mzml, output, zip):
 def full(mzid=None, idxml=None, mzml=None, output=None, zip=None):
   """
   Calculate all possible metrics for these files. These data sources will be included in set metrics.
-
-  Parameters
-  ----------
-  mzid: the identification file in mzIdentML to compute the id qc metrics
-  idxml: the identification file in idXML to compute the id qc metrics
-  mzml: mzML to compute the qc metrics
-
-  Returns
-  -------
-
   """
   exp = oms.MSExperiment()
   oms.MzMLFile().load(click.format_filename(mzml), exp)
@@ -199,16 +178,6 @@ def full(mzid=None, idxml=None, mzml=None, output=None, zip=None):
 def maxq(zipurl, rawname, mzml, output, zip):
   """
   Calculate all possible metrics id and spectra for MaxQuant output. These data sources will be included in set metrics.
-
-  Parameters
-  ----------
-  zipurl: zip file with all the MQ outputs.
-  rawname: The files that will be use to compute the QC metrics.
-  mzml: the mzML files to compute the QC metrics
-
-  Returns
-  -------
-
   """
   exp = oms.MSExperiment()
   oms.MzMLFile().load(click.format_filename(mzml), exp)
