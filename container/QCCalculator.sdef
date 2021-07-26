@@ -1,15 +1,22 @@
 Bootstrap: docker
-From: mwalzer/python-r:3.6-3.5-full_qc_pack
+From: python:3.6.9-slim-buster
 Includecmd: yes
      
 %files
     . /QCCalculator
         
 %post
+    apt-get update
+    apt-get install -y --no-install-recommends --no-install-suggests \
+        build-essential cmake autoconf patch libtool automake git \
+        vim wget gnupg2 \
+        libglib2.0-0 libgomp1 libcurl4-openssl-dev zlib1g-dev libstdc++6 libssl-dev
+    rm -rf /var/lib/apt/lists/* 
     pip install pronto biopython pandas requests plotly-express toposort
     pip install pyopenms==2.5.* 
-    pip install -U git+https://github.com/bigbio/mzqc-pylib.git#egg=mzqc-pylib
+    pip install -U git+https://github.com/bigbio/mzqc-pylib.git@v1.0.0
     pip install -U /QCCalculator
+
 
 %environment
     export PATH=$PATH:/bin

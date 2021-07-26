@@ -4,6 +4,7 @@
 src/pip-delete-this-directory\.txt
 src/
 MZQC\.egg-info/
+qccalculator.egg-info/
 *.egg*
 dist/
 bin/
