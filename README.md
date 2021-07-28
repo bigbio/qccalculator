@@ -52,3 +52,11 @@ The other modules contain metric calculation code for metric calculation and val
 
 ### Contribution
 For example, to add a new input from mzTab, you need a new module `mztab.py` to read the identification data. You also need to extend the command function for full QC in `cli.py`. The code should accept the results of `mztab.py`, optimally directly using the umbrella function `getIDQuality`. If that is not possible, you'd need to add a `idqcmztab.py` module to reuse the metric calculations with more direct input of values.
+
+#### Use PEP-008
+We try our best to follow [PEP-008](https://www.python.org/dev/peps/pep-0008/). But we also want to keep readability high by naming variables and functions for easy classification. Here are the essentials: 
+* code environment settings: indent width = 4 whitespaces (convert tabs to this width); try to break up lines longer than 111 characters; 
+* naming functions: 
+    - does the function collect proto-metrics or values needed for quality metric calculation? Use a get... prefix
+    - does the function calculate metrics and add them to a mzQC construct? Use a calc... prefix
+    - does the function mainly agglomerate metrics (albeit some calculation)? Use a describe... prefix
