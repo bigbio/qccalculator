@@ -4,6 +4,10 @@ import numpy as np
 import pandas as pd
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
+import pyopenms as oms
+import configparser
+import scipy.ndimage as nd
+
 from mzqc import MZQCFile as mzqc
 from qccalculator import utils
 
@@ -489,3 +493,41 @@ def calcMSSpread(spectrum_acquisition_metrics_MS:mzqc.QualityMetric, ms_level: i
     )
 
     return metrics
+
+def calcMSMSPeakDominance(exp: oms.MSExperiment, config: configparser.ConfigParser, verbose: bool=False) -> mzqc.RunQuality:
+    metrics: List[mzqc.QualityMetric] = list() 
+
+    spec_q: Dict[str,list] = {'native_id': list(), 'peak_dominance': list() }
+
+    for spec in exp:
+        if spec.getMSLevel() > 1:
+            spec.sortByIntensity(1)  # desc.
+            spectic = np.sum(spec.get_peaks()[1])  # spectrum total intensity
+            speccs = np.cumsum(spec.get_peaks()[1])  # max peaks first cumulative intensity
+            spec_q['peak_dominance'].append(speccs[np.where(speccs < spectic/2)].size)  # num of peaks to explain 50%
+            spec_q['native_id'].append(utils.getSpectrumNativeID(spec))
+
+    metrics.append(mzqc.QualityMetric(accession="QC:4000268", 
+                name="Min. peaks for 50% of total spectra intensity",
+                value=spec_q)
+    )
+    return metrics
+
+def calcBaseDrift(tic_tab: mzqc.QualityMetric) -> mzqc.RunQuality:
+    metrics: List[mzqc.QualityMetric] = list() 
+
+    # tophat for baseline drift estimate
+    # savgol filter for smoothing before tophat?
+
+    chrom = pd.DataFrame(tic_tab.value)
+    blpe_factor = 0.1  # base line points estimate factors
+    struct_pts = int(round(chrom.int.size*blpe_factor))
+
+    chrom["tophat"] = nd.white_tophat(chrom.int, None, np.repeat([1], struct_pts))
+    # di = np.sum(chrom.int-chrom.tophat)
+    #np.sum(chrom.int)
+    metrics.append(mzqc.QualityMetric(accession="QC:4000270", 
+                name="Estimated baseline drift fraction of total intensity",
+                value=np.sum(chrom.int-chrom.tophat)/np.sum(chrom.int))
+    )
+
