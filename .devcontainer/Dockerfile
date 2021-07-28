@@ -3,6 +3,7 @@ FROM python:3.6.9-slim-buster
 ENV DEBIAN_FRONTEND noninteractive 
  
 RUN apt-get update && apt-get install -y --no-install-recommends --no-install-suggests \ 
+  openssh-client \
   git \
   vim \
   libqt4-network \
