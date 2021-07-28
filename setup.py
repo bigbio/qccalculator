@@ -25,6 +25,6 @@ setup(
     include_package_data=True,
     #scripts=['bin/qspector/qspector.py'] ,
     entry_points={
-        'console_scripts': ['qccalculator = qccalculator.cli:cli']
+        'console_scripts': ['qccalculator = qccalculator.cli:cli', 'mzqcfileinfo = qccalculator.fileinfo:mzqcfileinfo']
       }
 )
