@@ -11,9 +11,9 @@ setup(
     description='Development for python driven QC calculation (qccalculator)',
     long_description=long_description,
     install_requires=[
+        "mzqc-pylib>=1",
         "biopython",
         "click",
-        "mzqc-pylib",
         "pandas",
         "plotly-express",
         "pronto",
