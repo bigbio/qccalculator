@@ -126,9 +126,9 @@ def basic(mzml, output, zip):
         print_help()
 
     config = configparser.ConfigParser()
-    #config.read(join(dirname(__file__), 'config.ini'))  # TODO assure access from packaged project
+    config.read(join(dirname(__file__), 'config.ini'))  # TODO assure access from packaged project
     #config.read('/QCCalculator/qccalculator/config.ini')  # temp fixed path to singularity container as described in the container sdef recipe
-    config.read('/workspaces/qccalculator/qccalculator/config.ini')
+    #config.read('/workspaces/qccalculator/qccalculator/config.ini')
 
     exp = oms.MSExperiment()
     oms.MzMLFile().load(click.format_filename(mzml), exp)
