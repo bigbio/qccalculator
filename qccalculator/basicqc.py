@@ -340,6 +340,7 @@ def getMetricSourceFramesIdent(pro_ids: List[oms.ProteinIdentification],
     List[mzqc.QualityMetric]
         List of resulting QualityMetrics
     """
+    metrics: List[mzqc.QualityMetric] = list()
     
     if len(pro_ids) < 1 or id_run_idx > len(pro_ids):
         raise AttributeError("Found NO identification runs at index {}, cannot proceed.".format(str(id_run_idx)))
@@ -446,39 +447,8 @@ def getMetricSourceFramesIdent(pro_ids: List[oms.ProteinIdentification],
     # )
 
 
-    return psms, peptides, fdr_peptides
 
-def getIDQuality(pro_ids: List[oms.ProteinIdentification],
-                 pep_ids: List[oms.PeptideIdentification], 
-                 config: configparser.ConfigParser,
-                 ms2num: int = 0, 
-                 id_run_idx: int = 0) -> List[mzqc.QualityMetric]:
-    """
-    getIDQuality calculates the id-based QualityMetrics from a mass spectrometry peak file and associated 
-    identification file.
-
-    Calculated are the id-based QC metrics and proto-metrics necessary to calculate more elaborate QC metrics 
-    with even more additional data (e.g. multiple runs).
-
-    Parameters
-    ----------
-    pro_ids : List[oms.ProteinIdentification]
-        List of PyOpenMS ProteinIdentification as from reading a common identification file
-    pep_ids : List[oms.PeptideIdentification]
-        List of PyOpenMS PeptideIdentification as from reading a common identification file
-    ms2num : int, optional
-        The total number of tandem spectra as from the id-free metrics, by default 0
-    id_run_idx : int, optional
-        The id run index used in case multiple id runs are detected, by default 0
-
-    Returns
-    -------
-    List[mzqc.QualityMetric]
-        List of resulting QualityMetrics
-    """
-    metrics: List[mzqc.QualityMetric] = list()
-
-    params = pro_ids[0].getSearchParameters()
+    # params = pro_ids[0].getSearchParameters()
     # var_mods = params.variable_modifications
 
     metrics.append(
@@ -643,4 +613,4 @@ def getIDQuality(pro_ids: List[oms.ProteinIdentification],
                         value=float(len(pep_ids)) / float(ms2num))
     )
 
-    return metrics
+    return psms, peptides, fdr_peptides, metrics
