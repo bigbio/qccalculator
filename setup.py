@@ -11,7 +11,7 @@ setup(
     description='Development for python driven QC calculation (qccalculator)',
     long_description=long_description,
     install_requires=[
-        "mzqc-pylib>=1",
+        "mzqc-pylib>=1.0.0 @ git+https://github.com/bigbio/mzqc-pylib.git@v1.0.0",
         "biopython",
         "click",
         "pandas",
