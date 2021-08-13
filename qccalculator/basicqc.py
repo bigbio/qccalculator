@@ -127,8 +127,13 @@ def getMetricSourceFramesCommon(exp: oms.MSExperiment, config: configparser.Conf
         
         nid = utils.getSpectrumNativeID(spec)
         iontraptime = utils.getTrapTime(spec)
-        intens_max = spec.get_peaks()[1].max()
-        intens_min = spec.get_peaks()[1].min()
+        if spec.size() == 0:
+            logging.warning("Mass spec run contains empty spectrum!")
+            intens_max = np.float32(0)
+            intens_min = np.float32(0)
+        else:
+            intens_max = spec.get_peaks()[1].max()
+            intens_min = spec.get_peaks()[1].min()
         intens_sum = spec.get_peaks()[1].sum()
 
         if spec.getMSLevel() == 1:

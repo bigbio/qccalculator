@@ -3,6 +3,9 @@ import os
 from os.path import basename
 from os.path import join
 from os.path import dirname
+from os.path import expanduser
+from os.path import exists
+
 
 import click
 import logging
@@ -15,6 +18,7 @@ import pyopenms as oms
 from click import command
 from mzqc import MZQCFile as qc
 from qccalculator import basicqc, idfree, idqc, idqcmq
+import qccalculator
 
 rqs: List[qc.RunQuality] = list()
 sqs: List[qc.SetQuality] = list()
@@ -115,6 +119,21 @@ def common_options(function):
                             is_flag=True)(function)
     return function
 
+def getconfig():
+    home = expanduser("~")
+    config_file = join(home, '.qccalculator', 'config.ini')
+    if not exists(config_file):
+        from qccalculator.configfile import config_content
+        qccalc_dir = join(home, '.qccalculator')
+        if not exists(qccalc_dir):
+            os.makedirs(qccalc_dir)
+        with open(config_file, 'w') as f:
+            f.write(config_content)
+        logging.info("Created configfile: {config_file}".format(config_file=config_file))
+    config = configparser.ConfigParser()
+    config.read(config_file)
+    return config
+
 
 @click.command('basic', short_help='Compute QC metrics for an mzML file')
 @common_options
@@ -125,10 +144,7 @@ def basic(mzml, output, zip):
     if mzml is None or output is None:
         print_help()
 
-    config = configparser.ConfigParser()
-    config.read(join(dirname(__file__), 'config.ini'))  # TODO assure access from packaged project
-    #config.read('/QCCalculator/qccalculator/config.ini')  # temp fixed path to singularity container as described in the container sdef recipe
-    #config.read('/workspaces/qccalculator/qccalculator/config.ini')
+    config = getconfig()
 
     exp = oms.MSExperiment()
     oms.MzMLFile().load(click.format_filename(mzml), exp)
@@ -184,10 +200,7 @@ def full(mzid=None, idxml=None, mzml=None, output=None, zip=None):
     if (mzml is None) or (mzid is None and idxml is None):
         print_help()
 
-    config = configparser.ConfigParser()
-    #config.read(join(dirname(__file__), 'config.ini'))  # TODO assure access from packaged project
-    #config.read('/QCCalculator/qccalculator/config.ini')  # temp fixed path to singularity container as described in the container sdef recipe
-    config.read('/workspaces/qccalculator/qccalculator/config.ini')
+    config = getconfig()
 
     exp = oms.MSExperiment()
     oms.MzMLFile().load(click.format_filename(mzml), exp)
