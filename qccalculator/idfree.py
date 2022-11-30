@@ -513,7 +513,8 @@ def calcMSMSPeakDominance(exp: oms.MSExperiment, config: configparser.ConfigPars
     )
     return metrics
 
-def calcBaseDrift(tic_tab: mzqc.QualityMetric) -> mzqc.RunQuality:
+def calcBaseDrift(tic_tab: mzqc.QualityMetric) -> List[mzqc.QualityMetric]:
+    # TODO how to warn if this not done on a spectrophotometer chromatogram
     metrics: List[mzqc.QualityMetric] = list() 
 
     # tophat for baseline drift estimate
@@ -530,4 +531,4 @@ def calcBaseDrift(tic_tab: mzqc.QualityMetric) -> mzqc.RunQuality:
                 name="Estimated baseline drift fraction of total intensity",
                 value=np.sum(chrom.int-chrom.tophat)/np.sum(chrom.int))
     )
-
+    return metrics

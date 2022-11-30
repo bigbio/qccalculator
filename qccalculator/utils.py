@@ -1,3 +1,4 @@
+import os 
 import hashlib
 import re
 import requests
@@ -73,7 +74,7 @@ def cast_if_int(pot_int: Any) -> Union[int, Any]:
         return pot_int
 
 
-def getSpectrumNativeID(spec: oms.MSSpectrum) -> Union[int]:
+def getSpectrumNativeID(spec: oms.MSSpectrum) -> Union[int,float]:
     """
     getSpectrumNativeID convenience function to retrieve the native id number from a spectrum
 
@@ -88,8 +89,8 @@ def getSpectrumNativeID(spec: oms.MSSpectrum) -> Union[int]:
 
     Returns
     -------
-    Union[int,np.nan]
-            Return is np.nan if spectrum native id cannot be interpreted (e.g. not of scan=number format)
+    Union[int,float]
+            Return is np.nan (type==float) if spectrum native id cannot be interpreted (e.g. not of scan=number format)
     """
     spre = spec.getNativeID()
     if spre:
@@ -413,3 +414,71 @@ def iterablePSMfromOpenMS(pep_ids: List[oms.PeptideIdentification]) -> Iterator[
                     hit.getMetaValue('target_decoy'),
                     nid,)
     #RT,MZ,c,score,proteinid,sequence,decoy,nativeid,  before,after?!?!depends on Protein , mods?!?!
+
+def remove_protocol_prefix(text: str) -> str:
+  """
+  remove_protocol_prefix helper method for provided paths.
+
+  Removes the protocol from an URI to leave the plain path. Considered prefixes:
+  * `http:/`
+  * `https:/`
+  * `file:/`
+  Consider also, Python 3.9 comes with built-in removeprefix method.
+
+  Parameters
+  ----------
+  text : str
+      The string with prefix to be removed.
+
+  Returns
+  -------
+  str
+      The input string stripped from its prefix.
+  """
+  prfxs = ['http:/', 'https:/', 'file:/']
+  for prefix in prfxs:
+    if text.lower.startswith(prefix):
+      return text[len(prefix):]
+  return text
+
+def is_active_url(url: str) -> bool:
+  """
+  is_active_url will check if a given URL is actually reachable.
+
+  Parameters
+  ----------
+  url : str
+      A URL to test for reachability.
+
+  Returns
+  -------
+  bool
+      Whether the given URL is reachable or not.
+  """
+  testobject: urllib.request.Request = urllib.request.Request(url)
+  testobject.get_method = lambda: 'HEAD'
+  try:
+      urllib.request.urlopen(testobject)
+      return True
+  except urllib.request.HTTPError:
+      return False
+
+def stripext(somepath: str) -> str:
+  """
+  stripext strips the last file extension from a given path
+  
+  Like strip, but more specialised. Removes the last dot and all thereafter. Uses os.path.splitext.
+
+  Parameters
+  ----------
+  somepath : str
+      can be anything, really
+
+  Returns
+  -------
+  str
+      the given string stripped of its rightmost file extension
+  """
+  return os.path.splitext(somepath)[0]
+
+
